@@ -1,0 +1,14 @@
+{
+  "expo": {
+    "name": "Duetto Student",
+    "slug": "duetto-student",
+    "scheme": "duetto-student",
+    "plugins": ["expo-router"],
+    "ios": {
+      "bundleIdentifier": "com.duetto.student"
+    },
+    "android": {
+      "package": "com.duetto.student"
+    }
+  }
+}

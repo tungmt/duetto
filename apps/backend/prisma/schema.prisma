@@ -1,0 +1,172 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  ADMIN
+  MODERATOR
+  USER
+}
+
+enum AccountStatus {
+  PENDING_EMAIL_VERIFICATION
+  ACTIVE
+  DISABLED
+}
+
+enum ChallengeStatus {
+  DRAFT
+  PUBLISHED
+  ARCHIVED
+}
+
+enum SubmissionStatus {
+  SUBMITTED
+  REVIEWED
+}
+
+model User {
+  id                    String            @id @default(cuid())
+  email                 String            @unique
+  name                  String
+  role                  Role              @default(USER)
+  accountStatus         AccountStatus     @default(PENDING_EMAIL_VERIFICATION)
+  emailVerificationCode String?
+  emailVerifiedAt       DateTime?
+  deletedAt             DateTime?
+  createdAt             DateTime          @default(now())
+  updatedAt             DateTime          @updatedAt
+  teacherProfile        TeacherProfile?
+  studentProfile        StudentProfile?
+  teacherChallenges     Challenge[]       @relation("TeacherChallenges")
+  studentSubmissions    Submission[]      @relation("StudentSubmissions")
+  classesTeaching       Class[]           @relation("TeacherClasses")
+  classMemberships      ClassEnrollment[]
+
+  @@index([role])
+  @@index([accountStatus])
+}
+
+model School {
+  id          String      @id @default(cuid())
+  name        String
+  description String?
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+  teacherProfiles TeacherProfile[]
+  studentProfiles StudentProfile[]
+  classes     Class[]
+  challenges  Challenge[]
+}
+
+model TeacherProfile {
+  id              String   @id @default(cuid())
+  userId          String   @unique
+  displayName     String
+  avatarUrl       String?
+  bio             String?
+  schoolId        String?
+  headline        String?
+  yearsExperience Int?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  user            User     @relation(fields: [userId], references: [id])
+  school          School?  @relation(fields: [schoolId], references: [id])
+
+  @@index([schoolId])
+}
+
+model StudentProfile {
+  id           String   @id @default(cuid())
+  userId       String   @unique
+  displayName  String
+  avatarUrl    String?
+  bio          String?
+  schoolId     String?
+  gradeLevel   String?
+  learningGoal String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  user         User     @relation(fields: [userId], references: [id])
+  school       School?  @relation(fields: [schoolId], references: [id])
+
+  @@index([schoolId])
+}
+
+model Challenge {
+  id             String          @id @default(cuid())
+  title          String
+  description    String?
+  teacherId      String
+  schoolId       String?
+  classId        String?
+  sourceVideoUrl String
+  textOverlays   Json            @default("[]")
+  status         ChallengeStatus @default(DRAFT)
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+  teacher        User            @relation("TeacherChallenges", fields: [teacherId], references: [id])
+  school         School?         @relation(fields: [schoolId], references: [id])
+  class          Class?          @relation(fields: [classId], references: [id])
+  submissions    Submission[]
+
+  @@index([teacherId])
+  @@index([schoolId])
+  @@index([classId])
+  @@index([status])
+}
+
+model Submission {
+  id               String           @id @default(cuid())
+  challengeId      String
+  studentId        String
+  answerMediaUrl   String
+  renderedVideoUrl String?
+  status           SubmissionStatus @default(SUBMITTED)
+  score            Int?
+  feedbackText     String?
+  feedbackVoiceUrl String?
+  practiceDurationMs Int?
+  createdAt        DateTime         @default(now())
+  updatedAt        DateTime         @updatedAt
+  challenge        Challenge        @relation(fields: [challengeId], references: [id])
+  student          User             @relation("StudentSubmissions", fields: [studentId], references: [id])
+
+  @@index([challengeId])
+  @@index([studentId])
+  @@index([status])
+}
+
+model Class {
+  id          String            @id @default(cuid())
+  schoolId    String?
+  teacherId   String?
+  name        String
+  description String?
+  createdAt   DateTime          @default(now())
+  updatedAt   DateTime          @updatedAt
+  school      School?           @relation(fields: [schoolId], references: [id])
+  teacher     User?             @relation("TeacherClasses", fields: [teacherId], references: [id])
+  enrollments ClassEnrollment[]
+  challenges  Challenge[]
+
+  @@index([schoolId])
+  @@index([teacherId])
+}
+
+model ClassEnrollment {
+  id        String   @id @default(cuid())
+  classId   String
+  studentId String
+  createdAt DateTime @default(now())
+  class     Class    @relation(fields: [classId], references: [id])
+  student   User     @relation(fields: [studentId], references: [id])
+
+  @@unique([classId, studentId])
+  @@index([studentId])
+}

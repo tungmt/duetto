@@ -1,0 +1,14 @@
+{
+  "expo": {
+    "name": "Duetto Teacher",
+    "slug": "duetto-teacher",
+    "scheme": "duetto-teacher",
+    "plugins": ["expo-router"],
+    "ios": {
+      "bundleIdentifier": "com.duetto.teacher"
+    },
+    "android": {
+      "package": "com.duetto.teacher"
+    }
+  }
+}
