@@ -2,6 +2,7 @@ import { Link, router } from "expo-router";
 import { useEffect, useState } from "react";
 import { Alert, KeyboardAvoidingView, Platform, Pressable, SafeAreaView, ScrollView, Text, TextInput, View } from "react-native";
 import { api } from "../../src/api";
+import { clearSession } from "../../src/session";
 import { styles } from "../../src/styles";
 
 export default function ProfileScreen() {
@@ -40,6 +41,11 @@ export default function ProfileScreen() {
     }
   }
 
+  async function logout() {
+    await clearSession();
+    router.replace("/login");
+  }
+
   async function deleteAccount() {
     Alert.alert("Delete account", "This cannot be undone. Are you sure?", [
       { text: "Cancel" },
@@ -48,6 +54,7 @@ export default function ProfileScreen() {
         onPress: async () => {
           try {
             await api("/api/me", { method: "DELETE" });
+            await clearSession();
             router.replace("/login");
           } catch (error) {
             Alert.alert("Error", error instanceof Error ? error.message : "Could not delete account");
@@ -117,7 +124,13 @@ export default function ProfileScreen() {
               </Pressable>
             </View>
 
-            <View style={{ marginTop: 24 }}>
+            <View style={{ marginTop: 24, gap: 12 }}>
+              <Pressable
+                style={styles.buttonSecondary}
+                onPress={logout}
+              >
+                <Text style={styles.buttonSecondaryText}>Log Out</Text>
+              </Pressable>
               <Pressable
                 style={[styles.button, styles.buttonDanger]}
                 onPress={deleteAccount}

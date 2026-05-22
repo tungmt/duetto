@@ -7,6 +7,7 @@ import { ensureRequestUser } from "@/lib/users";
 
 const teacherProfileSchema = z.object({
   displayName: z.string().min(1),
+  phoneNumber: z.string().nullable().optional(),
   avatarUrl: z.string().url().nullable().optional(),
   bio: z.string().nullable().optional(),
   schoolId: z.string().nullable().optional(),

@@ -18,7 +18,7 @@ export default function RegisterScreen() {
     try {
       const data = await api("/api/auth/register", {
         method: "POST",
-        body: JSON.stringify({ email, name, profileKind: "TEACHER" })
+        body: JSON.stringify({ email, name })
       });
       Alert.alert("Verification code", data.verificationCode);
       router.push({ pathname: "/verification", params: { email, code: data.verificationCode } });

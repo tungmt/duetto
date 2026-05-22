@@ -1,11 +1,14 @@
+import { getSessionUserId } from "./session";
+
 const API_URL = process.env.EXPO_PUBLIC_API_URL ?? "http://localhost:4000";
 
 export async function api(path: string, init?: RequestInit) {
+  const userId = (await getSessionUserId()) ?? "student-dev-user";
   const response = await fetch(`${API_URL}${path}`, {
     ...init,
     headers: {
       "content-type": "application/json",
-      "x-user-id": "student-dev-user",
+      "x-user-id": userId,
       "x-role": "USER",
       "x-profile-kind": "STUDENT",
       ...init?.headers

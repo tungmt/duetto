@@ -2,6 +2,7 @@ import { router, useLocalSearchParams } from "expo-router";
 import { useState } from "react";
 import { Alert, KeyboardAvoidingView, Platform, Pressable, SafeAreaView, Text, TextInput, View } from "react-native";
 import { api } from "../src/api";
+import { saveSession } from "../src/session";
 import { styles } from "../src/styles";
 
 export default function VerificationScreen() {
@@ -17,7 +18,8 @@ export default function VerificationScreen() {
     }
     setLoading(true);
     try {
-      await api("/api/auth/verify-email", { method: "POST", body: JSON.stringify({ email, code }) });
+      const data = await api("/api/auth/verify-email", { method: "POST", body: JSON.stringify({ email, code }) });
+      await saveSession(data.user.id);
       router.replace("/dashboard/challenges");
     } catch (error) {
       Alert.alert("Could not verify", error instanceof Error ? error.message : "Unknown error");

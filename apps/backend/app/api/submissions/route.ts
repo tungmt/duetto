@@ -7,8 +7,8 @@ import { ensureRequestUser, requireStudentProfile } from "@/lib/users";
 
 const createSubmissionSchema = z.object({
   challengeId: z.string().min(1),
-  answerMediaUrl: z.string().url(),
-  renderedVideoUrl: z.string().url().optional(),
+  answerMediaUrl: z.string().min(1),
+  renderedVideoUrl: z.string().optional(),
   practiceDurationMs: z.number().int().min(0).optional()
 });
 

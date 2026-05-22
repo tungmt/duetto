@@ -5,8 +5,8 @@ export function json(data: unknown, init?: ResponseInit) {
     ...init,
     headers: {
       "Access-Control-Allow-Origin": "*",
-      "Access-Control-Allow-Headers": "content-type,x-user-id,x-role",
-      "Access-Control-Allow-Methods": "GET,POST,PATCH,OPTIONS",
+      "Access-Control-Allow-Headers": "content-type,x-user-id,x-role,x-profile-kind",
+      "Access-Control-Allow-Methods": "GET,POST,PUT,PATCH,DELETE,OPTIONS",
       ...init?.headers
     }
   });

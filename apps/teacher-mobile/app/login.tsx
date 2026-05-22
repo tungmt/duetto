@@ -2,6 +2,7 @@ import { Link, router } from "expo-router";
 import { useState } from "react";
 import { Alert, KeyboardAvoidingView, Platform, Pressable, SafeAreaView, Text, TextInput, View } from "react-native";
 import { api } from "../src/api";
+import { saveSession } from "../src/session";
 import { styles } from "../src/styles";
 
 export default function LoginScreen() {
@@ -19,6 +20,8 @@ export default function LoginScreen() {
         method: "POST",
         body: JSON.stringify({ email })
       });
+
+      await saveSession(data.user.id);
 
       if (!data.user.teacherProfile) {
         router.push("/onboarding");

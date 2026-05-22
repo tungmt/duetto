@@ -17,8 +17,8 @@ export default function ChallengeDetailScreen() {
   const recordingRef = useRef<Audio.Recording | null>(null);
 
   useEffect(() => {
-    api(`/api/videos?id=${id}`).then((data) => {
-      setChallenge(data.videos?.[0] ?? null);
+    api(`/api/videos/${id}`).then((data) => {
+      setChallenge(data.challenge ?? null);
     });
   }, [id]);
 
