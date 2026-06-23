@@ -1,6 +1,6 @@
 import { router, useLocalSearchParams } from "expo-router";
 import { useState } from "react";
-import { Alert, KeyboardAvoidingView, Platform, Pressable, SafeAreaView, Text, TextInput, View } from "react-native";
+import { Alert, KeyboardAvoidingView, Platform, Pressable, SafeAreaView, ScrollView, Text, TextInput, View } from "react-native";
 import { api } from "../src/api";
 import { saveSession } from "../src/session";
 import { styles } from "../src/styles";
@@ -34,7 +34,7 @@ export default function VerificationScreen() {
   return (
     <SafeAreaView style={styles.safe}>
       <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : "height"} style={{ flex: 1 }}>
-        <View style={styles.container}>
+        <ScrollView contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
           <View style={{ marginBottom: 20 }}>
             <Text style={styles.heading}>Verify Email</Text>
             <Text style={styles.subheading}>Enter the code sent to your email</Text>
@@ -74,7 +74,7 @@ export default function VerificationScreen() {
               <Text style={styles.buttonText}>{loading ? "Verifying..." : "Verify Email"}</Text>
             </Pressable>
           </View>
-        </View>
+        </ScrollView>
       </KeyboardAvoidingView>
     </SafeAreaView>
   );

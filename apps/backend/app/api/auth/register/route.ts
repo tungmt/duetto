@@ -3,10 +3,13 @@ import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { handleError, json, options } from "@/lib/http";
 import { toPublicUser } from "@/lib/users";
+import { hashPassword } from "@/lib/password";
+import { sendVerificationEmail } from "@/lib/email";
 
 const registerSchema = z.object({
   email: z.string().email(),
   name: z.string().min(1),
+  password: z.string().min(6),
   profileKind: z.enum(["TEACHER", "STUDENT"]).optional(),
   schoolId: z.string().optional()
 });
@@ -15,15 +18,18 @@ export async function POST(request: NextRequest) {
   try {
     const input = registerSchema.parse(await request.json());
     const verificationCode = String(Math.floor(100000 + Math.random() * 900000));
+    const passwordHash = await hashPassword(input.password);
 
     const user = await prisma.user.upsert({
       where: { email: input.email.toLowerCase() },
       update: {
-        name: input.name
+        name: input.name,
+        passwordHash: passwordHash
       },
       create: {
         email: input.email.toLowerCase(),
         name: input.name,
+        passwordHash: passwordHash,
         role: "USER",
         accountStatus: "PENDING_EMAIL_VERIFICATION",
         emailVerificationCode: verificationCode
@@ -71,6 +77,9 @@ export async function POST(request: NextRequest) {
         studentProfile: true
       }
     });
+
+    // Send verification email
+    await sendVerificationEmail(user.email, verificationCode);
 
     return json(
       {

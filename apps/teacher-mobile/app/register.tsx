@@ -1,24 +1,34 @@
 import { Link, router } from "expo-router";
 import { useState } from "react";
-import { Alert, KeyboardAvoidingView, Platform, Pressable, SafeAreaView, Text, TextInput, View } from "react-native";
+import { Alert, KeyboardAvoidingView, Platform, Pressable, SafeAreaView, ScrollView, Text, TextInput, View } from "react-native";
 import { api } from "../src/api";
 import { styles } from "../src/styles";
 
 export default function RegisterScreen() {
   const [email, setEmail] = useState("teacher@example.com");
   const [name, setName] = useState("Teacher");
+  const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
   const [loading, setLoading] = useState(false);
 
   async function register() {
-    if (!email.trim() || !name.trim()) {
-      Alert.alert("Missing information", "Please enter your email and name.");
+    if (!email.trim() || !name.trim() || !password.trim() || !confirmPassword.trim()) {
+      Alert.alert("Missing information", "Please fill in all fields.");
+      return;
+    }
+    if (password.length < 6) {
+      Alert.alert("Weak password", "Password must be at least 6 characters.");
+      return;
+    }
+    if (password !== confirmPassword) {
+      Alert.alert("Password mismatch", "Password and confirm password do not match.");
       return;
     }
     setLoading(true);
     try {
       const data = await api("/api/auth/register", {
         method: "POST",
-        body: JSON.stringify({ email, name })
+        body: JSON.stringify({ email, name, password, profileKind: "TEACHER" })
       });
       Alert.alert("Verification code", data.verificationCode);
       router.push({ pathname: "/verification", params: { email, code: data.verificationCode } });
@@ -32,7 +42,7 @@ export default function RegisterScreen() {
   return (
     <SafeAreaView style={styles.safe}>
       <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : "height"} style={{ flex: 1 }}>
-        <View style={styles.container}>
+        <ScrollView contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
           <View style={{ marginBottom: 20 }}>
             <Text style={styles.heading}>Create Account</Text>
             <Text style={styles.subheading}>Join as a teacher to create challenges</Text>
@@ -63,6 +73,30 @@ export default function RegisterScreen() {
                 style={styles.input}
               />
             </View>
+            <View>
+              <Text style={[styles.title, { marginBottom: 8 }]}>Password</Text>
+              <TextInput
+                value={password}
+                onChangeText={setPassword}
+                placeholder="At least 6 characters"
+                placeholderTextColor="#9ca3af"
+                secureTextEntry
+                editable={!loading}
+                style={styles.input}
+              />
+            </View>
+            <View>
+              <Text style={[styles.title, { marginBottom: 8 }]}>Confirm Password</Text>
+              <TextInput
+                value={confirmPassword}
+                onChangeText={setConfirmPassword}
+                placeholder="Re-enter password"
+                placeholderTextColor="#9ca3af"
+                secureTextEntry
+                editable={!loading}
+                style={styles.input}
+              />
+            </View>
 
             <Pressable
               style={[styles.button, loading && styles.buttonDisabled]}
@@ -80,7 +114,7 @@ export default function RegisterScreen() {
               </Pressable>
             </Link>
           </View>
-        </View>
+        </ScrollView>
       </KeyboardAvoidingView>
     </SafeAreaView>
   );

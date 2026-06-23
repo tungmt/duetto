@@ -1,12 +1,13 @@
 import { Link, router } from "expo-router";
 import { useState } from "react";
-import { Alert, KeyboardAvoidingView, Platform, Pressable, SafeAreaView, Text, TextInput, View } from "react-native";
+import { Alert, KeyboardAvoidingView, Platform, Pressable, SafeAreaView, ScrollView, Text, TextInput, View } from "react-native";
 import { api } from "../src/api";
 import { saveSession } from "../src/session";
 import { styles } from "../src/styles";
 
 export default function LoginScreen() {
   const [email, setEmail] = useState("teacher@example.com");
+  const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
 
   async function login() {
@@ -14,11 +15,15 @@ export default function LoginScreen() {
       Alert.alert("Missing email", "Please enter your email address.");
       return;
     }
+    if (!password.trim()) {
+      Alert.alert("Missing password", "Please enter your password.");
+      return;
+    }
     setLoading(true);
     try {
       const data = await api("/api/auth/login", {
         method: "POST",
-        body: JSON.stringify({ email })
+        body: JSON.stringify({ email, password })
       });
 
       await saveSession(data.user.id);
@@ -39,7 +44,7 @@ export default function LoginScreen() {
   return (
     <SafeAreaView style={styles.safe}>
       <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : "height"} style={{ flex: 1 }}>
-        <View style={styles.container}>
+        <ScrollView contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
           <View style={{ marginBottom: 20 }}>
             <Text style={styles.heading}>Welcome Back</Text>
             <Text style={styles.subheading}>Sign in to your teacher account</Text>
@@ -55,6 +60,19 @@ export default function LoginScreen() {
                 placeholderTextColor="#9ca3af"
                 autoCapitalize="none"
                 keyboardType="email-address"
+                editable={!loading}
+                style={styles.input}
+              />
+            </View>
+
+            <View>
+              <Text style={[styles.title, { marginBottom: 8 }]}>Password</Text>
+              <TextInput
+                value={password}
+                onChangeText={setPassword}
+                placeholder="Enter your password"
+                placeholderTextColor="#9ca3af"
+                secureTextEntry
                 editable={!loading}
                 style={styles.input}
               />
@@ -81,7 +99,7 @@ export default function LoginScreen() {
               </Pressable>
             </Link>
           </View>
-        </View>
+        </ScrollView>
       </KeyboardAvoidingView>
     </SafeAreaView>
   );

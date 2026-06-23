@@ -1,6 +1,6 @@
 import { router } from "expo-router";
 import { useState } from "react";
-import { Alert, KeyboardAvoidingView, Platform, Pressable, SafeAreaView, Text, TextInput, View } from "react-native";
+import { Alert, KeyboardAvoidingView, Platform, Pressable, SafeAreaView, ScrollView, Text, TextInput, View } from "react-native";
 import { api } from "../src/api";
 import { styles } from "../src/styles";
 
@@ -28,7 +28,7 @@ export default function ResetPasswordScreen() {
   return (
     <SafeAreaView style={styles.safe}>
       <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : "height"} style={{ flex: 1 }}>
-        <View style={styles.container}>
+        <ScrollView contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
           <View style={{ marginBottom: 20 }}>
             <Text style={styles.heading}>Reset Password</Text>
             <Text style={styles.subheading}>We'll send you instructions to reset your password</Text>
@@ -61,7 +61,7 @@ export default function ResetPasswordScreen() {
               <Text style={styles.link}>Back to login</Text>
             </Pressable>
           </View>
-        </View>
+        </ScrollView>
       </KeyboardAvoidingView>
     </SafeAreaView>
   );
