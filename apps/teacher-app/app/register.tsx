@@ -35,7 +35,11 @@ export default function RegisterScreen() {
         body: JSON.stringify({ email, name, password, profileKind: "TEACHER" })
       });
       Alert.alert("Verification code", data.verificationCode);
-      navigation.navigate("Verification", { email, code: data.verificationCode });
+      navigation.navigate("Verification", {
+        email,
+        code: data.verificationCode,
+        initialCooldownSeconds: 120
+      });
     } catch (error) {
       Alert.alert("Could not register", error instanceof Error ? error.message : "Unknown error");
     } finally {
@@ -47,9 +51,12 @@ export default function RegisterScreen() {
     <SafeAreaView style={styles.safe}>
       <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : "height"} style={{ flex: 1 }}>
         <ScrollView contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
-          <View style={{ marginBottom: 20 }}>
-            <Text style={styles.heading}>Create Account</Text>
-            <Text style={styles.subheading}>Join as a teacher to create challenges</Text>
+          <View style={[styles.heroCard, { marginBottom: 16 }]}> 
+            <View style={styles.heroTopRow}>
+              <Text style={styles.heroTitle}>Create Account</Text>
+            </View>
+            <Text style={styles.heroEyebrow}>Teacher Onboarding</Text>
+            <Text style={styles.heroSubtitle}>Join as a teacher to create challenges.</Text>
           </View>
 
           <View style={{ gap: 12 }}>

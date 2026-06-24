@@ -1,6 +1,5 @@
 import { useEffect, useRef, useState } from "react";
 import { Audio, Video, ResizeMode} from 'expo-av'
-import { useLocalSearchParams, router } from "expo-router";
 import { Alert, KeyboardAvoidingView, Platform, Pressable, SafeAreaView, ScrollView, Text, View } from "react-native";
 import { api } from "../../src/api";
 import { styles } from "../../src/styles";
@@ -80,9 +79,31 @@ export default function ChallengeDetailScreen({ navigation, route }: any) {
       <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : "height"} style={{ flex: 1 }}>
         <ScrollView contentContainerStyle={styles.scrollContent}>
           <View style={styles.container}>
-            <View style={{ marginBottom: 20 }}>
-              <Text style={styles.heading}>{challenge.title}</Text>
-              <Text style={styles.status}>{challenge.description}</Text>
+            <View style={{ backgroundColor: "#0f2742", borderRadius: 20, padding: 18, gap: 6, marginBottom: 14 }}>
+              <View style={{ flexDirection: "row", alignItems: "center", gap: 10, marginBottom: 2 }}>
+                <Pressable
+                  style={{
+                    backgroundColor: "rgba(147, 197, 253, 0.2)",
+                    borderColor: "rgba(147, 197, 253, 0.5)",
+                    borderWidth: 1,
+                    borderRadius: 999,
+                    paddingHorizontal: 12,
+                    paddingVertical: 7
+                  }}
+                  onPress={() => navigation.goBack()}
+                >
+                  <Text style={{ color: "#dbeafe", fontSize: 13, fontWeight: "700" }}>← Back</Text>
+                </Pressable>
+                <Text style={{ flex: 1, color: "#f8fafc", fontSize: 26, fontWeight: "800" }} numberOfLines={1}>
+                  {challenge.title}
+                </Text>
+              </View>
+              <Text style={{ color: "#93c5fd", fontSize: 12, fontWeight: "700", letterSpacing: 0.4, textTransform: "uppercase" }}>
+                Challenge Workout
+              </Text>
+              <Text style={{ color: "#cbd5e1", fontSize: 14, fontWeight: "500", lineHeight: 20 }}>
+                {challenge.description || "Record and submit your answer video."}
+              </Text>
             </View>
 
             <Video
@@ -92,14 +113,14 @@ export default function ChallengeDetailScreen({ navigation, route }: any) {
               useNativeControls
             />
 
-            <View style={{ marginTop: 20 }}>
+            <View style={{ marginTop: 14 }}>
               <Text style={styles.sectionTitle}>Record Your Answer</Text>
               <Text style={styles.status}>Press record and provide your response</Text>
 
               <View style={{ gap: 12, marginTop: 12 }}>
                 <View style={{ flexDirection: "row", gap: 12 }}>
                   <Pressable
-                    style={[styles.button, { flex: 1, backgroundColor: isRecording ? "#ef4444" : "#2563eb" }]}
+                    style={[styles.button, { flex: 1, backgroundColor: isRecording ? "#ef4444" : "#0369a1" }]}
                     onPress={isRecording ? stopRecording : startRecording}
                     disabled={loading}
                   >

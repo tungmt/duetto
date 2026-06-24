@@ -38,9 +38,12 @@ export default function LoginScreen({ navigation }: any) {
     <SafeAreaView style={styles.safe}>
       <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : "height"} style={{ flex: 1 }}>
         <ScrollView contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
-          <View style={{ marginBottom: 20 }}>
-            <Text style={styles.heading}>Welcome Back</Text>
-            <Text style={styles.subheading}>Sign in to your student account</Text>
+          <View style={[styles.heroCard, { marginBottom: 16 }]}> 
+            <View style={styles.heroTopRow}>
+              <Text style={styles.heroTitle}>Welcome Back</Text>
+            </View>
+            <Text style={styles.heroEyebrow}>Student Login</Text>
+            <Text style={styles.heroSubtitle}>Sign in to your student account.</Text>
           </View>
 
           <View style={{ gap: 12 }}>

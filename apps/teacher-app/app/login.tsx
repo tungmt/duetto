@@ -2,7 +2,8 @@ import { useNavigation } from "@react-navigation/native";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { useState } from "react";
 import { Alert, KeyboardAvoidingView, Platform, Pressable, SafeAreaView, ScrollView, Text, TextInput, View } from "react-native";
-import { api } from "../src/api";
+import { ApiError, api } from "../src/api";
+import nav from "../src/navigation";
 import { saveSession } from "../src/session";
 import { styles } from "../src/styles";
 
@@ -33,12 +34,26 @@ export default function LoginScreen() {
       await saveSession(data.user.id);
 
       if (!data.user.teacherProfile) {
-        navigation.navigate("Onboarding");
+        nav.reset("AppStack", { screen: "UpdateProfileFromDashboard" });
         return;
       }
 
-      navigation.navigate("Dashboard");
+      nav.reset("AppStack", { screen: "Dashboard" });
     } catch (error) {
+      if (error instanceof ApiError && error.status === 403) {
+        try {
+          await api("/api/auth/send-verification-email", {
+            method: "POST",
+            body: JSON.stringify({ email })
+          });
+        } catch {
+          // Ignore resend failure here; verification screen still allows manual retry.
+        }
+
+        navigation.navigate("Verification", { email, initialCooldownSeconds: 120 });
+        return;
+      }
+
       Alert.alert("Could not login", error instanceof Error ? error.message : "Unknown error");
     } finally {
       setLoading(false);
@@ -49,9 +64,12 @@ export default function LoginScreen() {
     <SafeAreaView style={styles.safe}>
       <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : "height"} style={{ flex: 1 }}>
         <ScrollView contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
-          <View style={{ marginBottom: 20 }}>
-            <Text style={styles.heading}>Welcome Back</Text>
-            <Text style={styles.subheading}>Sign in to your teacher account</Text>
+          <View style={[styles.heroCard, { marginBottom: 16 }]}> 
+            <View style={styles.heroTopRow}>
+              <Text style={styles.heroTitle}>Welcome Back</Text>
+            </View>
+            <Text style={styles.heroEyebrow}>Teacher Login</Text>
+            <Text style={styles.heroSubtitle}>Sign in to your teacher account.</Text>
           </View>
 
           <View style={{ gap: 12 }}>

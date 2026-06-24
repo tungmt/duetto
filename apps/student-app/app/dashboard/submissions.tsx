@@ -38,9 +38,12 @@ export default function SubmissionsScreen() {
     <SafeAreaView style={styles.safe}>
       <ScrollView contentContainerStyle={styles.scrollContent}>
         <View style={styles.container}>
-          <View style={{ marginBottom: 8 }}>
-            <Text style={styles.heading}>Submissions</Text>
-            <Text style={styles.subheading}>Track your answers and feedback</Text>
+          <View style={[styles.heroCard, { marginBottom: 2 }]}>
+            <View style={styles.heroTopRow}>
+              <Text style={styles.heroTitle}>Submissions</Text>
+            </View>
+            <Text style={styles.heroEyebrow}>Progress Center</Text>
+            <Text style={styles.heroSubtitle}>Track your answers and feedback.</Text>
           </View>
 
           <View style={styles.card}>

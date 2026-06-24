@@ -19,26 +19,27 @@ import {
 import { api } from "../src/api";
 
 type RecordVideoScreenNavigationProp = NativeStackNavigationProp<any, "RecordVideo">;
+type ChallengeStatus = "DRAFT" | "PUBLISHED";
 
 const localStyles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#f5f5f7"
+    backgroundColor: "#eef3f8"
   },
   header: {
     padding: 16,
-    backgroundColor: "#fff",
+    backgroundColor: "#ffffff",
     borderBottomWidth: 1,
-    borderBottomColor: "#e5e5ea"
+    borderBottomColor: "#dbe4ef"
   },
   headerTitle: {
     fontSize: 24,
-    fontWeight: "600",
-    color: "#000"
+    fontWeight: "800",
+    color: "#0f172a"
   },
   headerSubtitle: {
     fontSize: 14,
-    color: "#666",
+    color: "#64748b",
     marginTop: 4
   },
   content: {
@@ -46,7 +47,7 @@ const localStyles = StyleSheet.create({
     gap: 16
   },
   previewCard: {
-    backgroundColor: "#000",
+    backgroundColor: "#0b1220",
     borderRadius: 12,
     overflow: "hidden",
     aspectRatio: 16 / 9,
@@ -84,9 +85,9 @@ const localStyles = StyleSheet.create({
     marginTop: 8
   },
   selectButton: {
-    backgroundColor: "#007AFF",
+    backgroundColor: "#0369a1",
     paddingVertical: 12,
-    borderRadius: 8,
+    borderRadius: 12,
     alignItems: "center",
     marginBottom: 16
   },
@@ -100,27 +101,28 @@ const localStyles = StyleSheet.create({
   },
   label: {
     fontSize: 14,
-    fontWeight: "600",
-    color: "#000",
+    fontWeight: "700",
+    color: "#0f172a",
     marginBottom: 8
   },
   input: {
-    backgroundColor: "#fff",
-    borderRadius: 8,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
+    backgroundColor: "#f8fafc",
+    borderRadius: 12,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
     fontSize: 16,
     borderWidth: 1,
-    borderColor: "#e5e5ea"
+    borderColor: "#dbe4ef",
+    color: "#0f172a"
   },
   textArea: {
     minHeight: 100,
     textAlignVertical: "top"
   },
   submitButton: {
-    backgroundColor: "#34C759",
+    backgroundColor: "#0284c7",
     paddingVertical: 12,
-    borderRadius: 8,
+    borderRadius: 12,
     alignItems: "center",
     marginTop: 16
   },
@@ -134,25 +136,53 @@ const localStyles = StyleSheet.create({
   },
   backButton: {
     paddingVertical: 12,
-    borderRadius: 8,
+    borderRadius: 12,
     alignItems: "center",
     marginTop: 8,
-    backgroundColor: "#f5f5f7"
+    backgroundColor: "#e2e8f0"
   },
   backButtonText: {
-    color: "#007AFF",
+    color: "#0f172a",
     fontSize: 14,
-    fontWeight: "500"
+    fontWeight: "700"
+  },
+  uploadProgressWrap: {
+    backgroundColor: "#ffffff",
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: "#dbe4ef",
+    padding: 12,
+    gap: 8
+  },
+  uploadProgressLabel: {
+    color: "#111827",
+    fontSize: 13,
+    fontWeight: "600"
+  },
+  uploadProgressTrack: {
+    height: 8,
+    borderRadius: 999,
+    backgroundColor: "#e5e7eb",
+    overflow: "hidden"
+  },
+  uploadProgressFill: {
+    height: "100%",
+    borderRadius: 999,
+    backgroundColor: "#2563eb"
   }
 });
 
 export default function RecordVideoScreen() {
   const navigation = useNavigation<RecordVideoScreenNavigationProp>();
   const [videoUri, setVideoUri] = useState("");
+  const [videoFileName, setVideoFileName] = useState("challenge-video.mp4");
+  const [videoContentType, setVideoContentType] = useState("video/mp4");
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [loading, setLoading] = useState(false);
   const [videoLoading, setVideoLoading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState<number | null>(null);
+  const [submittingAs, setSubmittingAs] = useState<ChallengeStatus | null>(null);
 
   async function selectVideo() {
     try {
@@ -170,15 +200,58 @@ export default function RecordVideoScreen() {
       });
 
       if (!result.canceled && result.assets[0]?.uri) {
-        setVideoUri(result.assets[0].uri);
+        const asset = result.assets[0];
+        setVideoUri(asset.uri);
+        setVideoFileName(asset.fileName || `challenge-${Date.now()}.mp4`);
+        setVideoContentType(asset.mimeType || "video/mp4");
         setVideoLoading(true);
+        setUploadProgress(null);
       }
     } catch (error) {
       Alert.alert("Error", error instanceof Error ? error.message : "Could not select video");
     }
   }
 
-  async function submitChallenge() {
+  async function uploadVideoWithProgress(params: {
+    uploadUrl: string;
+    fileUri: string;
+    contentType: string;
+  }) {
+    const fileResponse = await fetch(params.fileUri);
+    const fileBlob = await fileResponse.blob();
+
+    await new Promise<void>((resolve, reject) => {
+      const xhr = new XMLHttpRequest();
+      xhr.open("PUT", params.uploadUrl);
+      xhr.setRequestHeader("Content-Type", params.contentType);
+
+      xhr.upload.onprogress = (event) => {
+        if (!event.lengthComputable) {
+          return;
+        }
+
+        const percent = Math.min(100, Math.round((event.loaded / event.total) * 100));
+        setUploadProgress(percent);
+      };
+
+      xhr.onload = () => {
+        if (xhr.status >= 200 && xhr.status < 300) {
+          setUploadProgress(100);
+          resolve();
+          return;
+        }
+
+        reject(new Error(`Upload failed with status ${xhr.status}`));
+      };
+
+      xhr.onerror = () => reject(new Error("Network error while uploading video."));
+      xhr.onabort = () => reject(new Error("Video upload was cancelled."));
+
+      xhr.send(fileBlob);
+    });
+  }
+
+  async function submitChallenge(status: ChallengeStatus) {
     if (!videoUri) {
       Alert.alert("Missing video", "Please select a video first.");
       return;
@@ -189,22 +262,41 @@ export default function RecordVideoScreen() {
     }
 
     setLoading(true);
+    setSubmittingAs(status);
+    setUploadProgress(0);
     try {
+      const uploadInfo = await api("/api/videos/upload-url", {
+        method: "POST",
+        body: JSON.stringify({
+          fileName: videoFileName,
+          contentType: videoContentType,
+          fileType: "source"
+        })
+      });
+
+      await uploadVideoWithProgress({
+        uploadUrl: uploadInfo.uploadUrl,
+        fileUri: videoUri,
+        contentType: videoContentType
+      });
+
       await api("/api/videos", {
         method: "POST",
         body: JSON.stringify({
           title: title.trim(),
           description: description.trim(),
-          sourceVideoUrl: videoUri,
-          status: "PUBLISHED"
+          sourceVideoUrl: uploadInfo.publicUrl,
+          status
         })
       });
 
-      Alert.alert("Success", "Challenge published!");
+      Alert.alert("Success", status === "PUBLISHED" ? "Challenge published!" : "Draft saved!");
       navigation.navigate("Dashboard");
     } catch (error) {
       Alert.alert("Error", error instanceof Error ? error.message : "Could not publish challenge");
     } finally {
+      setSubmittingAs(null);
+      setUploadProgress(null);
       setLoading(false);
     }
   }
@@ -247,6 +339,15 @@ export default function RecordVideoScreen() {
             <Text style={localStyles.selectButtonText}>{videoUri ? "Change Video" : "Select Video from Library"}</Text>
           </Pressable>
 
+          {loading && uploadProgress !== null ? (
+            <View style={localStyles.uploadProgressWrap}>
+              <Text style={localStyles.uploadProgressLabel}>Uploading video: {uploadProgress}%</Text>
+              <View style={localStyles.uploadProgressTrack}>
+                <View style={[localStyles.uploadProgressFill, { width: `${uploadProgress}%` }]} />
+              </View>
+            </View>
+          ) : null}
+
           <View style={localStyles.formSection}>
             <View>
               <Text style={localStyles.label}>Challenge Title</Text>
@@ -276,10 +377,22 @@ export default function RecordVideoScreen() {
 
           <Pressable
             style={[localStyles.submitButton, !videoUri || loading ? localStyles.submitButtonDisabled : null]}
-            onPress={submitChallenge}
+            onPress={() => submitChallenge("PUBLISHED")}
             disabled={!videoUri || loading}
           >
-            <Text style={localStyles.submitButtonText}>{loading ? "Publishing..." : "Publish Challenge"}</Text>
+            <Text style={localStyles.submitButtonText}>
+              {loading && submittingAs === "PUBLISHED" ? "Uploading and publishing..." : "Publish Challenge"}
+            </Text>
+          </Pressable>
+
+          <Pressable
+            style={[localStyles.backButton, !videoUri || loading ? localStyles.submitButtonDisabled : null]}
+            onPress={() => submitChallenge("DRAFT")}
+            disabled={!videoUri || loading}
+          >
+            <Text style={localStyles.backButtonText}>
+              {loading && submittingAs === "DRAFT" ? "Uploading and saving draft..." : "Save As Draft"}
+            </Text>
           </Pressable>
 
           <Pressable style={localStyles.backButton} onPress={() => navigation.goBack()} disabled={loading}>

@@ -79,9 +79,12 @@ export default function ProfileScreen({ navigation }: any) {
       <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : "height"} style={{ flex: 1 }}>
         <ScrollView contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
           <View style={styles.container}>
-            <View style={{ marginBottom: 8 }}>
-              <Text style={styles.heading}>Profile</Text>
-              <Text style={styles.subheading}>Manage your account</Text>
+            <View style={[styles.heroCard, { marginBottom: 2 }]}>
+              <View style={styles.heroTopRow}>
+                <Text style={styles.heroTitle}>Profile</Text>
+              </View>
+              <Text style={styles.heroEyebrow}>Account Settings</Text>
+              <Text style={styles.heroSubtitle}>Manage your account details and password.</Text>
             </View>
 
             <View style={styles.card}>

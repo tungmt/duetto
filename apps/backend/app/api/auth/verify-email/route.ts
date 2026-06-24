@@ -3,6 +3,7 @@ import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { handleError, json, options } from "@/lib/http";
 import { toPublicUser } from "@/lib/users";
+import { sendWelcomeEmail } from "@/lib/email";
 
 const verifySchema = z.object({
   email: z.string().email(),
@@ -32,6 +33,8 @@ export async function POST(request: NextRequest) {
         studentProfile: true
       }
     });
+
+    await sendWelcomeEmail(verifiedUser.email, verifiedUser.name);
 
     return json({ user: toPublicUser(verifiedUser) });
   } catch (error) {

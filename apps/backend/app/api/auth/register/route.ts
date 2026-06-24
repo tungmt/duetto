@@ -24,7 +24,10 @@ export async function POST(request: NextRequest) {
       where: { email: input.email.toLowerCase() },
       update: {
         name: input.name,
-        passwordHash: passwordHash
+        passwordHash: passwordHash,
+        accountStatus: "PENDING_EMAIL_VERIFICATION",
+        emailVerifiedAt: null,
+        emailVerificationCode: verificationCode
       },
       create: {
         email: input.email.toLowerCase(),
@@ -84,7 +87,7 @@ export async function POST(request: NextRequest) {
     return json(
       {
         user: toPublicUser(userWithProfiles),
-        verificationCode: user.emailVerificationCode ?? verificationCode
+        verificationCode: userWithProfiles.emailVerificationCode ?? verificationCode
       },
       { status: 201 }
     );

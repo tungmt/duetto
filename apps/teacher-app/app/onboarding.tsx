@@ -42,9 +42,12 @@ export default function OnboardingScreen() {
       <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : "height"} style={{ flex: 1 }}>
         <ScrollView contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
           <View style={styles.container}>
-            <View style={{ marginBottom: 24 }}>
-              <Text style={styles.heading}>Welcome to Duetto</Text>
-              <Text style={styles.subheading}>Let's get your profile started with some basic information</Text>
+            <View style={[styles.heroCard, { marginBottom: 6 }]}>
+              <View style={styles.heroTopRow}>
+                <Text style={styles.heroTitle}>Welcome to Duetto</Text>
+              </View>
+              <Text style={styles.heroEyebrow}>Profile Setup</Text>
+              <Text style={styles.heroSubtitle}>Let us get your profile started with some basic information.</Text>
             </View>
 
             <View style={{ gap: 12 }}>

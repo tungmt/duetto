@@ -28,9 +28,15 @@ export default function ResetPasswordScreen({ navigation }: any) {
     <SafeAreaView style={styles.safe}>
       <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : "height"} style={{ flex: 1 }}>
         <ScrollView contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
-          <View style={{ marginBottom: 20 }}>
-            <Text style={styles.heading}>Reset Password</Text>
-            <Text style={styles.subheading}>We'll send you instructions to reset your password</Text>
+          <View style={[styles.heroCard, { marginBottom: 16 }]}> 
+            <View style={styles.heroTopRow}>
+              <Pressable onPress={() => navigation.goBack()} style={styles.backButton}>
+                <Text style={styles.backButtonText}>← Back</Text>
+              </Pressable>
+              <Text style={styles.heroTitle}>Reset Password</Text>
+            </View>
+            <Text style={styles.heroEyebrow}>Account Recovery</Text>
+            <Text style={styles.heroSubtitle}>We will send you instructions to reset your password.</Text>
           </View>
 
           <View style={{ gap: 12 }}>

@@ -1,12 +1,15 @@
+import { useNavigation } from "@react-navigation/native";
+import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { useEffect, useState } from "react";
-import { Alert, FlatList, KeyboardAvoidingView, Platform, Pressable, SafeAreaView, ScrollView, Text, TextInput, View } from "react-native";
+import { FlatList, KeyboardAvoidingView, Platform, Pressable, SafeAreaView, ScrollView, Text, View } from "react-native";
 import { api } from "../../src/api";
 import { styles } from "../../src/styles";
 
 type ClassRoom = { id: string; name: string; _count?: { enrollments: number; challenges: number } };
+type ClassesScreenNavigationProp = NativeStackNavigationProp<any, "ClassesTab">;
 
 export default function ClassesScreen() {
-  const [name, setName] = useState("");
+  const navigation = useNavigation<ClassesScreenNavigationProp>();
   const [classes, setClasses] = useState<ClassRoom[]>([]);
   const [loading, setLoading] = useState(false);
 
@@ -22,24 +25,6 @@ export default function ClassesScreen() {
     }
   }
 
-  async function createClass() {
-    if (!name.trim()) {
-      Alert.alert("Missing name", "Please enter a class name.");
-      return;
-    }
-    setLoading(true);
-    try {
-      await api("/api/classes", { method: "POST", body: JSON.stringify({ name }) });
-      Alert.alert("Success", "Class created.");
-      setName("");
-      await refresh();
-    } catch (error) {
-      Alert.alert("Error", error instanceof Error ? error.message : "Could not create class");
-    } finally {
-      setLoading(false);
-    }
-  }
-
   useEffect(() => {
     refresh();
   }, []);
@@ -49,31 +34,18 @@ export default function ClassesScreen() {
       <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : "height"} style={{ flex: 1 }}>
         <ScrollView contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
           <View style={styles.container}>
-            <View style={{ marginBottom: 20 }}>
-              <Text style={styles.heading}>Classes</Text>
-              <Text style={styles.subheading}>Manage your student classes</Text>
-            </View>
+            <View style={[styles.heroCard, { marginBottom: 2 }]}>
+              <View style={styles.heroTopRow}>
+                <Text style={styles.heroTitle}>Classes</Text>
 
-            <View style={{ gap: 12, marginBottom: 24 }}>
-              <View>
-                <Text style={[styles.title, { marginBottom: 8 }]}>Class Name</Text>
-                <TextInput
-                  value={name}
-                  onChangeText={setName}
-                  placeholder="e.g., Period 1 English"
-                  placeholderTextColor="#9ca3af"
-                  editable={!loading}
-                  style={styles.input}
-                />
+                {classes.length > 0 ? (
+                  <Pressable style={[styles.button, { minHeight: 44, paddingVertical: 10, paddingHorizontal: 14 }]} onPress={() => navigation.navigate("CreateClass")}>
+                    <Text style={[styles.buttonText, { fontSize: 14 }]}>+ Add Class</Text>
+                  </Pressable>
+                ) : null}
               </View>
-
-              <Pressable
-                style={[styles.button, loading && styles.buttonDisabled]}
-                onPress={createClass}
-                disabled={loading}
-              >
-                <Text style={styles.buttonText}>{loading ? "Creating..." : "Create Class"}</Text>
-              </Pressable>
+              <Text style={styles.heroEyebrow}>Class Workspace</Text>
+              <Text style={styles.heroSubtitle}>Manage your student classes and open class details.</Text>
             </View>
 
             {loading && classes.length === 0 ? (
@@ -81,23 +53,32 @@ export default function ClassesScreen() {
                 <Text style={styles.status}>Loading classes...</Text>
               </View>
             ) : classes.length === 0 ? (
-              <View style={styles.emptyContainer}>
-                <Text style={styles.status}>No classes yet. Create your first class above.</Text>
+              <View style={[styles.emptyContainer, styles.card]}>
+                <Text style={styles.title}>No classes yet</Text>
+                <Text style={[styles.status, { textAlign: "center" }]}>Create your first class to start adding students and challenges.</Text>
+                <Pressable style={[styles.button, { marginTop: 8, minWidth: 220 }]} onPress={() => navigation.navigate("CreateClass")}>
+                  <Text style={styles.buttonText}>Create First Class</Text>
+                </Pressable>
               </View>
             ) : (
               <View>
                 <Text style={styles.sectionTitle}>Your Classes</Text>
+                <Text style={[styles.status, { marginBottom: 8 }]}>Tap a class to view students and details.</Text>
                 <FlatList
                   scrollEnabled={false}
                   data={classes}
                   keyExtractor={(item) => item.id}
                   renderItem={({ item }) => (
-                    <View style={styles.row}>
+                    <Pressable
+                      style={styles.row}
+                      onPress={() => navigation.navigate("ClassDetail", { classId: item.id, className: item.name })}
+                    >
                       <Text style={styles.title}>{item.name}</Text>
                       <Text style={styles.status}>
                         {item._count?.enrollments ?? 0} student{item._count?.enrollments !== 1 ? "s" : ""}
                       </Text>
-                    </View>
+                      <Text style={[styles.link, { marginTop: 8 }]}>Open Class</Text>
+                    </Pressable>
                   )}
                 />
               </View>

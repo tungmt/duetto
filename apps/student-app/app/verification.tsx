@@ -34,9 +34,12 @@ export default function VerificationScreen({ navigation, route }: any) {
     <SafeAreaView style={styles.safe}>
       <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : "height"} style={{ flex: 1 }}>
         <ScrollView contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
-          <View style={{ marginBottom: 20 }}>
-            <Text style={styles.heading}>Verify Email</Text>
-            <Text style={styles.subheading}>Enter the code sent to your email</Text>
+          <View style={[styles.heroCard, { marginBottom: 16 }]}> 
+            <View style={styles.heroTopRow}>
+              <Text style={styles.heroTitle}>Verify Email</Text>
+            </View>
+            <Text style={styles.heroEyebrow}>Email Verification</Text>
+            <Text style={styles.heroSubtitle}>Enter the code sent to your email.</Text>
           </View>
 
           <View style={{ gap: 12 }}>

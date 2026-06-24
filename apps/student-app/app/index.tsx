@@ -110,7 +110,7 @@ export default function RootNavigator() {
 
   if (isLoading) {
     return (
-      <View style={{ flex: 1, justifyContent: "center", alignItems: "center", backgroundColor: "#f5f5f7" }}>
+      <View style={{ flex: 1, justifyContent: "center", alignItems: "center", backgroundColor: "#eef3f8" }}>
         <ActivityIndicator size="large" />
       </View>
     );
@@ -123,13 +123,13 @@ export default function RootNavigator() {
           <Stack.Screen 
             name="AuthStack" 
             component={AuthStack}
-            options={{ animationEnabled: false }}
+            options={{ animation: "none" }}
           />
         ) : (
           <Stack.Screen 
             name="AppStack" 
             component={AppStack}
-            options={{ animationEnabled: false }}
+            options={{ animation: "none" }}
           />
         )}
       </Stack.Navigator>

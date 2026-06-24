@@ -3,6 +3,7 @@ import { NavigationContainer } from "@react-navigation/native";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 import { ActivityIndicator, View } from "react-native";
+import { isReadyRef, navigationRef } from "../src/navigation";
 import { getSessionUserId } from "../src/session";
 
 // Import screens from their locations
@@ -11,11 +12,17 @@ import RegisterScreen from "./register";
 import VerificationScreen from "./verification";
 import ResetPasswordScreen from "./reset-password";
 import UpdateProfileScreen from "./update-profile";
-import OnboardingScreen from "./onboarding";
 import RecordVideoScreen from "./record-video";
 import ChallengesScreen from "./dashboard/challenges";
 import ClassesScreen from "./dashboard/classes";
 import ProfileScreen from "./dashboard/profile";
+import UpdatePasswordScreen from "./dashboard/update-password";
+import ClassDetailScreen from "./dashboard/class-detail";
+import StudentDetailScreen from "./dashboard/student-detail";
+import CreateStudentScreen from "./dashboard/create-student";
+import CreateClassScreen from "./dashboard/create-class";
+import ChallengeDetailScreen from "./dashboard/challenge-detail";
+import SubmissionReviewScreen from "./dashboard/submission-review";
 
 const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
@@ -24,7 +31,7 @@ function DashboardTabs() {
   return (
     <Tab.Navigator
       screenOptions={{
-        headerTitle: "Duetto Teacher",
+        headerShown: false,
         tabBarLabelPosition: "below-icon",
       }}
     >
@@ -91,6 +98,41 @@ function AppStack() {
         component={UpdateProfileScreen}
         options={{ title: "Update Profile" }}
       />
+      <Stack.Screen 
+        name="UpdatePassword" 
+        component={UpdatePasswordScreen}
+        options={{ title: "Change Password" }}
+      />
+      <Stack.Screen
+        name="ClassDetail"
+        component={ClassDetailScreen}
+        options={{ title: "Class Detail" }}
+      />
+      <Stack.Screen
+        name="StudentDetail"
+        component={StudentDetailScreen}
+        options={{ title: "Student Detail" }}
+      />
+      <Stack.Screen
+        name="CreateStudent"
+        component={CreateStudentScreen}
+        options={{ title: "Create Student" }}
+      />
+      <Stack.Screen
+        name="CreateClass"
+        component={CreateClassScreen}
+        options={{ title: "Create Class" }}
+      />
+      <Stack.Screen
+        name="ChallengeDetail"
+        component={ChallengeDetailScreen}
+        options={{ headerShown: false }}
+      />
+      <Stack.Screen
+        name="SubmissionReview"
+        component={SubmissionReviewScreen}
+        options={{ title: "Submission Review" }}
+      />
     </Stack.Navigator>
   );
 }
@@ -116,28 +158,36 @@ export default function RootNavigator() {
 
   if (isLoading) {
     return (
-      <View style={{ flex: 1, justifyContent: "center", alignItems: "center", backgroundColor: "#f5f5f7" }}>
+      <View style={{ flex: 1, justifyContent: "center", alignItems: "center", backgroundColor: "#eef3f8" }}>
         <ActivityIndicator size="large" />
       </View>
     );
   }
 
   return (
-    <NavigationContainer>
-      <Stack.Navigator screenOptions={{ headerShown: false }}>
-        {initialRoute === "Auth" ? (
-          <Stack.Screen 
-            name="AuthStack" 
-            component={AuthStack}
-            options={{ animationEnabled: false }}
-          />
-        ) : (
-          <Stack.Screen 
-            name="AppStack" 
-            component={AppStack}
-            options={{ animationEnabled: false }}
-          />
-        )}
+    <NavigationContainer
+      ref={navigationRef}
+      onReady={() => {
+        isReadyRef.current = true;
+      }}
+      onStateChange={() => {
+        isReadyRef.current = true;
+      }}
+    >
+      <Stack.Navigator
+        screenOptions={{ headerShown: false }}
+        initialRouteName={initialRoute === "Auth" ? "AuthStack" : "AppStack"}
+      >
+        <Stack.Screen
+          name="AuthStack"
+          component={AuthStack}
+          options={{ animation: "none" }}
+        />
+        <Stack.Screen
+          name="AppStack"
+          component={AppStack}
+          options={{ animation: "none" }}
+        />
       </Stack.Navigator>
     </NavigationContainer>
   );

@@ -29,9 +29,12 @@ export default function ChallengesScreen({ navigation }: any) {
     <SafeAreaView style={styles.safe}>
       <ScrollView contentContainerStyle={styles.scrollContent}>
         <View style={styles.container}>
-          <View style={{ marginBottom: 8 }}>
-            <Text style={styles.heading}>Challenges</Text>
-            <Text style={styles.subheading}>Practice and submit your answers</Text>
+          <View style={[styles.heroCard, { marginBottom: 2 }]}>
+            <View style={styles.heroTopRow}>
+              <Text style={styles.heroTitle}>Challenges</Text>
+            </View>
+            <Text style={styles.heroEyebrow}>Practice Zone</Text>
+            <Text style={styles.heroSubtitle}>Practice and submit your answers.</Text>
           </View>
 
           {loading ? (

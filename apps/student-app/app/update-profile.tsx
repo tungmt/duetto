@@ -36,9 +36,12 @@ export default function UpdateProfileScreen({ navigation }: any) {
       <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : "height"} style={{ flex: 1 }}>
         <ScrollView contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
           <View style={styles.container}>
-            <View style={{ marginBottom: 20 }}>
-              <Text style={styles.heading}>Profile</Text>
-              <Text style={styles.subheading}>Update your student profile information</Text>
+            <View style={[styles.heroCard, { marginBottom: 6 }]}>
+              <View style={styles.heroTopRow}>
+                <Text style={styles.heroTitle}>Profile</Text>
+              </View>
+              <Text style={styles.heroEyebrow}>Student Profile</Text>
+              <Text style={styles.heroSubtitle}>Update your student profile information.</Text>
             </View>
 
             <View style={{ gap: 12 }}>

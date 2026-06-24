@@ -42,9 +42,12 @@ export default function RegisterScreen({ navigation }: any) {
     <SafeAreaView style={styles.safe}>
       <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : "height"} style={{ flex: 1 }}>
         <ScrollView contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
-          <View style={{ marginBottom: 20 }}>
-            <Text style={styles.heading}>Create Account</Text>
-            <Text style={styles.subheading}>Join as a student to get started</Text>
+          <View style={[styles.heroCard, { marginBottom: 16 }]}> 
+            <View style={styles.heroTopRow}>
+              <Text style={styles.heroTitle}>Create Account</Text>
+            </View>
+            <Text style={styles.heroEyebrow}>Student Onboarding</Text>
+            <Text style={styles.heroSubtitle}>Join as a student to get started.</Text>
           </View>
 
           <View style={{ gap: 12 }}>
