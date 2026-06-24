@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Alert, KeyboardAvoidingView, Platform, Pressable, SafeAreaView, ScrollView, Text, TextInput, View } from "react-native";
 import { api } from "../../src/api";
+import nav from "../../src/navigation";
 import { clearSession } from "../../src/session";
 import { styles } from "../../src/styles";
 
@@ -42,10 +43,7 @@ export default function ProfileScreen({ navigation }: any) {
 
   async function logout() {
     await clearSession();
-    navigation.reset({
-      index: 0,
-      routes: [{ name: "Login" }],
-    });
+    nav.reset("AuthStack", { screen: "Login" });
   }
 
   async function deleteAccount() {
@@ -57,10 +55,7 @@ export default function ProfileScreen({ navigation }: any) {
           try {
             await api("/api/me", { method: "DELETE" });
             await clearSession();
-            navigation.reset({
-              index: 0,
-              routes: [{ name: "Login" }],
-            });
+            nav.reset("AuthStack", { screen: "Login" });
           } catch (error) {
             Alert.alert("Error", error instanceof Error ? error.message : "Could not delete account");
           }

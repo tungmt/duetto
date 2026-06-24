@@ -28,16 +28,34 @@ export async function GET(request: NextRequest) {
   try {
     const user = getRequestUser(request);
     await ensureRequestUser(user);
+    const searchParams = request.nextUrl.searchParams;
+    const limitParam = Number(searchParams.get("limit") ?? "5");
+    const limit = Number.isFinite(limitParam)
+      ? Math.max(5, Math.min(10, Math.floor(limitParam)))
+      : 5;
+    const cursor = searchParams.get("cursor");
+    const cursorDate = cursor ? new Date(cursor) : null;
+
     const profileKind = request.headers.get("x-profile-kind");
-    const where =
+    const baseWhere = {
+      sourceVideoUrl: { not: "" }
+    };
+
+    const whereBase =
       profileKind === "TEACHER"
-        ? { teacherId: user.id }
+        ? { ...baseWhere, teacherId: user.id }
         : profileKind === "STUDENT"
-          ? { status: "PUBLISHED" as const }
-          : {};
+          ? { ...baseWhere, status: "PUBLISHED" as const }
+          : baseWhere;
+
+    const where =
+      cursorDate && !Number.isNaN(cursorDate.getTime())
+        ? { ...whereBase, createdAt: { lt: cursorDate } }
+        : whereBase;
 
     const rawVideos = await prisma.challenge.findMany({
       where,
+      take: limit + 1,
       orderBy: { createdAt: "desc" },
       include: {
         teacher: { select: { id: true, name: true } },
@@ -47,7 +65,10 @@ export async function GET(request: NextRequest) {
       }
     });
 
-    const videos = rawVideos.map((video) => {
+    const hasMore = rawVideos.length > limit;
+    const pagedVideos = hasMore ? rawVideos.slice(0, limit) : rawVideos;
+
+    const videos = pagedVideos.map((video) => {
       const overlay = (video.textOverlays ?? null) as
         | {
             items?: unknown[];
@@ -63,7 +84,11 @@ export async function GET(request: NextRequest) {
       };
     });
 
-    return json({ videos });
+    const nextCursor = hasMore
+      ? pagedVideos[pagedVideos.length - 1]?.createdAt?.toISOString() ?? null
+      : null;
+
+    return json({ videos, paging: { hasMore, nextCursor } });
   } catch (error) {
     return handleError(error);
   }

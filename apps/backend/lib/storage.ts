@@ -29,7 +29,7 @@ function sanitizeFileName(name: string) {
 
 export function buildVideoObjectKey(params: {
   userId: string;
-  fileType: "source" | "preview" | "thumbnail";
+  fileType: "source" | "preview" | "thumbnail" | "answer";
   fileName: string;
 }) {
   const now = new Date();

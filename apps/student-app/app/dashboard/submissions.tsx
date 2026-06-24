@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { FlatList, SafeAreaView, ScrollView, Text, View } from "react-native";
+import { FlatList, Pressable, SafeAreaView, ScrollView, Text, View } from "react-native";
 import { api } from "../../src/api";
 import { styles } from "../../src/styles";
 
@@ -12,7 +12,7 @@ type Answer = {
   challenge?: { title: string };
 };
 
-export default function SubmissionsScreen() {
+export default function SubmissionsScreen({ navigation }: any) {
   const [history, setHistory] = useState<Answer[]>([]);
   const [progress, setProgress] = useState<Record<string, number | null>>({});
   const [loading, setLoading] = useState(true);
@@ -77,7 +77,7 @@ export default function SubmissionsScreen() {
               data={history}
               keyExtractor={(item) => item.id}
               renderItem={({ item }) => (
-                <View style={styles.row}>
+                <Pressable style={styles.row} onPress={() => navigation.navigate("SubmissionDetail", { submissionId: item.id })}>
                   <Text style={styles.title}>{item.challenge?.title ?? "Challenge"}</Text>
                   <Text style={styles.status}>Score: {item.score ?? "Pending"}</Text>
                   {item.feedbackText ? (
@@ -89,7 +89,8 @@ export default function SubmissionsScreen() {
                     <Text style={[styles.status, { marginTop: 8 }]}>Waiting for teacher feedback...</Text>
                   )}
                   <Text style={[styles.status, { marginTop: 8, fontSize: 12 }]}>Status: {item.status}</Text>
-                </View>
+                  <Text style={styles.link}>Open submission detail →</Text>
+                </Pressable>
               )}
             />
           )}

@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Alert, KeyboardAvoidingView, Platform, Pressable, SafeAreaView, ScrollView, Text, TextInput, View } from "react-native";
 import { api } from "../src/api";
+import nav from "../src/navigation";
 import { saveSession } from "../src/session";
 import { styles } from "../src/styles";
 
@@ -23,10 +24,10 @@ export default function LoginScreen({ navigation }: any) {
       const data = await api("/api/auth/login", { method: "POST", body: JSON.stringify({ email, password }) });
       await saveSession(data.user.id);
       if (!data.user.studentProfile) {
-        navigation.navigate("UpdateProfile");
+        nav.reset("AuthStack", { screen: "UpdateProfile" });
         return;
       }
-      navigation.replace("Dashboard");
+      nav.reset("AppStack", { screen: "Dashboard" });
     } catch (error) {
       Alert.alert("Could not login", error instanceof Error ? error.message : "Unknown error");
     } finally {

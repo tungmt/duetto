@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Alert, KeyboardAvoidingView, Platform, Pressable, SafeAreaView, ScrollView, Text, TextInput, View } from "react-native";
 import { api } from "../src/api";
+import nav from "../src/navigation";
 import { saveSession } from "../src/session";
 import { styles } from "../src/styles";
 
@@ -19,10 +20,7 @@ export default function VerificationScreen({ navigation, route }: any) {
     try {
       const data = await api("/api/auth/verify-email", { method: "POST", body: JSON.stringify({ email, code }) });
       await saveSession(data.user.id);
-      navigation.reset({
-        index: 0,
-        routes: [{ name: "Dashboard" }],
-      });
+      nav.reset("AppStack", { screen: "Dashboard" });
     } catch (error) {
       Alert.alert("Could not verify", error instanceof Error ? error.message : "Unknown error");
     } finally {

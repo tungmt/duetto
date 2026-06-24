@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Alert, KeyboardAvoidingView, Platform, Pressable, SafeAreaView, ScrollView, Text, TextInput, View } from "react-native";
 import { api } from "../src/api";
+import nav from "../src/navigation";
 import { styles } from "../src/styles";
 
 export default function UpdateProfileScreen({ navigation }: any) {
@@ -20,10 +21,7 @@ export default function UpdateProfileScreen({ navigation }: any) {
         method: "PUT",
         body: JSON.stringify({ displayName, gradeLevel, learningGoal })
       });
-      navigation.reset({
-        index: 0,
-        routes: [{ name: "Dashboard" }],
-      });
+      nav.reset("AppStack", { screen: "Dashboard" });
     } catch (error) {
       Alert.alert("Could not save profile", error instanceof Error ? error.message : "Unknown error");
     } finally {
