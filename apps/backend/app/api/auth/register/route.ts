@@ -19,6 +19,7 @@ export async function POST(request: NextRequest) {
     const input = registerSchema.parse(await request.json());
     const verificationCode = String(Math.floor(100000 + Math.random() * 900000));
     const passwordHash = await hashPassword(input.password);
+    const verificationExpiresAt = new Date(Date.now() + 15 * 60 * 1000);
 
     const user = await prisma.user.upsert({
       where: { email: input.email.toLowerCase() },
@@ -26,20 +27,27 @@ export async function POST(request: NextRequest) {
         name: input.name,
         passwordHash: passwordHash,
         accountStatus: "PENDING_EMAIL_VERIFICATION",
-        emailVerifiedAt: null,
-        emailVerificationCode: verificationCode
+        emailVerifiedAt: null
       },
       create: {
         email: input.email.toLowerCase(),
         name: input.name,
         passwordHash: passwordHash,
-        role: "USER",
-        accountStatus: "PENDING_EMAIL_VERIFICATION",
-        emailVerificationCode: verificationCode
+        roles: ["USER"],
+        accountStatus: "PENDING_EMAIL_VERIFICATION"
       },
       include: {
         teacherProfile: true,
         studentProfile: true
+      }
+    });
+
+    await prisma.verificationCode.create({
+      data: {
+        userId: user.id,
+        code: verificationCode,
+        type: "EMAIL_VERIFICATION",
+        expiresAt: verificationExpiresAt
       }
     });
 
@@ -87,7 +95,7 @@ export async function POST(request: NextRequest) {
     return json(
       {
         user: toPublicUser(userWithProfiles),
-        verificationCode: userWithProfiles.emailVerificationCode ?? verificationCode
+        verificationCode
       },
       { status: 201 }
     );

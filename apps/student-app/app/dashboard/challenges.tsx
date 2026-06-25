@@ -1,7 +1,7 @@
 import { ResizeMode, Video } from "expo-av";
 import { useBottomTabBarHeight } from "@react-navigation/bottom-tabs";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Dimensions, FlatList, Pressable, SafeAreaView, Text, View } from "react-native";
+import { Dimensions, FlatList, Image, Pressable, Text, View } from "react-native";
 import { api } from "../../src/api";
 import nav from "../../src/navigation";
 import { styles } from "../../src/styles";
@@ -12,7 +12,11 @@ type Challenge = {
   description?: string | null;
   sourceVideoUrl: string;
   createdAt: string;
-  teacher?: { id: string; name: string } | null;
+  teacher?: {
+    id: string;
+    name: string;
+    teacherProfile?: { displayName?: string | null; avatarUrl?: string | null; headline?: string | null } | null;
+  } | null;
   _count?: { submissions: number };
 };
 type ChallengeResponse = { videos: Challenge[]; paging?: { hasMore?: boolean; nextCursor?: string | null } };
@@ -50,6 +54,12 @@ function formatTimeAgo(isoDate: string) {
 
   const diffYears = Math.floor(diffMonths / 12);
   return `${diffYears}y ago`;
+}
+
+function getInitials(name: string) {
+  const parts = name.trim().split(/\s+/).filter(Boolean);
+  if (!parts.length) return "T";
+  return parts.slice(0, 2).map((part) => part[0]?.toUpperCase() ?? "").join("") || "T";
 }
 
 export default function ChallengesScreen({ navigation }: any) {
@@ -137,7 +147,7 @@ export default function ChallengesScreen({ navigation }: any) {
   });
 
   return (
-    <SafeAreaView style={styles.safe}>
+    <View style={styles.safe}>
       {loading ? (
         <View style={[styles.container, styles.emptyContainer]}>
           <Text style={styles.status}>Loading challenges...</Text>
@@ -166,6 +176,8 @@ export default function ChallengesScreen({ navigation }: any) {
             const isActive = activeId === item.id;
             const answerCount = item._count?.submissions ?? 0;
             const viewCount = item._count?.submissions ?? 0;
+            const teacherName = item.teacher?.teacherProfile?.displayName || item.teacher?.name || "Teacher";
+            const teacherAvatar = item.teacher?.teacherProfile?.avatarUrl;
             return (
               <View style={{ height: itemHeight, backgroundColor: "#0b1220" }}>
                 <Video
@@ -206,12 +218,44 @@ export default function ChallengesScreen({ navigation }: any) {
                     backgroundColor: "rgba(15, 23, 42, 0.55)"
                   }}
                 >
+                  {item.teacher?.id ? (
+                    <Pressable
+                      onPress={() => nav.navigate("TeacherDetail", { teacherId: item.teacher?.id })}
+                      style={{ flexDirection: "row", alignItems: "center", gap: 10, marginBottom: 12 }}
+                    >
+                      {teacherAvatar ? (
+                        <Image
+                          source={{ uri: teacherAvatar }}
+                          style={{ width: 44, height: 44, borderRadius: 22, backgroundColor: "#cbd5e1" }}
+                        />
+                      ) : (
+                        <View
+                          style={{
+                            width: 44,
+                            height: 44,
+                            borderRadius: 22,
+                            backgroundColor: "rgba(14, 165, 233, 0.95)",
+                            alignItems: "center",
+                            justifyContent: "center"
+                          }}
+                        >
+                          <Text style={{ color: "#ffffff", fontWeight: "800", fontSize: 16 }}>{getInitials(teacherName)}</Text>
+                        </View>
+                      )}
+                      <View style={{ flex: 1 }}>
+                        <Text style={{ color: "#f8fafc", fontSize: 15, fontWeight: "800" }}>{teacherName}</Text>
+                        <Text style={{ color: "#bae6fd", fontSize: 12, fontWeight: "600" }} numberOfLines={1}>
+                          {item.teacher?.teacherProfile?.headline || "Open teacher profile"}
+                        </Text>
+                      </View>
+                    </Pressable>
+                  ) : null}
                   <Text style={{ color: "#f8fafc", fontSize: 20, fontWeight: "800" }}>{item.title}</Text>
                   <Text style={{ color: "#cbd5e1", fontSize: 14, marginTop: 6 }} numberOfLines={2}>
                     {item.description ?? "Teacher challenge"}
                   </Text>
                   <Text style={{ color: "#e2e8f0", fontSize: 13, marginTop: 8, fontWeight: "600" }}>
-                    By {item.teacher?.name ?? "Teacher"} • {formatTimeAgo(item.createdAt)}
+                    By {teacherName} • {formatTimeAgo(item.createdAt)}
                   </Text>
                   <Text style={{ color: "#bae6fd", fontSize: 13, marginTop: 4, fontWeight: "700" }}>
                     {viewCount} views • {answerCount} answers
@@ -247,6 +291,7 @@ export default function ChallengesScreen({ navigation }: any) {
           }
         />
       )}
-    </SafeAreaView>
+    </View>
   );
 }
+

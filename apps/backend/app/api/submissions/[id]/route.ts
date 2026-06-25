@@ -7,6 +7,7 @@ import { ensureRequestUser, requireStudentProfile, requireTeacherProfile } from 
 
 const updateSubmissionSchema = z.object({
   answerMediaUrl: z.string().min(1).optional(),
+  answerSegments: z.array(z.string().url()).optional(),
   renderedVideoUrl: z.string().optional(),
   practiceDurationMs: z.number().int().min(0).optional()
 }).refine((input) => Object.keys(input).length > 0, {
@@ -29,6 +30,7 @@ export async function GET(request: NextRequest, context: { params: Promise<{ id:
             title: true,
             description: true,
             sourceVideoUrl: true,
+            answerPeriods: true,
             teacherId: true,
             teacher: { select: { id: true, name: true } }
           }

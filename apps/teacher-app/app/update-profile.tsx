@@ -1,7 +1,7 @@
 import { useNavigation, useFocusEffect } from "@react-navigation/native";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { useCallback, useState } from "react";
-import { Alert, Image, KeyboardAvoidingView, Platform, Pressable, SafeAreaView, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
+import { Alert, Image, KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 import * as ImagePicker from "expo-image-picker";
 import { api } from "../src/api";
 
@@ -213,7 +213,7 @@ export default function UpdateProfileScreen() {
   }
 
   return (
-    <SafeAreaView style={localStyles.container}>
+    <View style={localStyles.container}>
       <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : "height"} style={{ flex: 1 }}>
         <ScrollView contentContainerStyle={localStyles.content} keyboardShouldPersistTaps="handled">
           <View style={localStyles.header}>
@@ -290,6 +290,7 @@ export default function UpdateProfileScreen() {
           </View>
         </ScrollView>
       </KeyboardAvoidingView>
-    </SafeAreaView>
+    </View>
   );
 }
+

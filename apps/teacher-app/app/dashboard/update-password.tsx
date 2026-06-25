@@ -1,7 +1,8 @@
 import { useNavigation } from "@react-navigation/native";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { useState } from "react";
-import { Alert, KeyboardAvoidingView, Platform, Pressable, SafeAreaView, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
+import { Alert, KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
+import { Ionicons } from "@expo/vector-icons";
 import { api } from "../../src/api";
 
 type UpdatePasswordScreenNavigationProp = NativeStackNavigationProp<any, "UpdatePassword">;
@@ -52,15 +53,21 @@ const localStyles = StyleSheet.create({
     fontWeight: "700",
     color: "#0f172a"
   },
-  input: {
-    backgroundColor: "#f8fafc",
-    borderRadius: 12,
-    paddingHorizontal: 14,
-    paddingVertical: 12,
-    fontSize: 16,
-    borderWidth: 1,
-    borderColor: "#dbe4ef",
-    color: "#0f172a"
+  inputContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    position: "relative"
+  },
+  passwordInputWrapper: {
+    flex: 1,
+    position: "relative"
+  },
+  eyeButton: {
+    position: "absolute",
+    right: 12,
+    top: "50%",
+    marginTop: -10,
+    padding: 8
   },
   button: {
     backgroundColor: "#0369a1",
@@ -98,6 +105,9 @@ export default function UpdatePasswordScreen() {
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
+  const [showCurrentPassword, setShowCurrentPassword] = useState(false);
+  const [showNewPassword, setShowNewPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [loading, setLoading] = useState(false);
 
   async function updatePassword() {
@@ -142,7 +152,7 @@ export default function UpdatePasswordScreen() {
   }
 
   return (
-    <SafeAreaView style={localStyles.container}>
+    <View style={localStyles.container}>
       <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : "height"} style={{ flex: 1 }}>
         <ScrollView contentContainerStyle={localStyles.content} keyboardShouldPersistTaps="handled">
           <View style={localStyles.header}>
@@ -159,41 +169,95 @@ export default function UpdatePasswordScreen() {
           <View style={localStyles.formSection}>
             <View style={localStyles.inputGroup}>
               <Text style={localStyles.label}>Current Password</Text>
-              <TextInput
-                value={currentPassword}
-                onChangeText={setCurrentPassword}
-                placeholder="Enter your current password"
-                placeholderTextColor="#9ca3af"
-                secureTextEntry
-                editable={!loading}
-                style={localStyles.input}
-              />
+              <View style={localStyles.inputContainer}>
+                <TextInput
+                  value={currentPassword}
+                  onChangeText={setCurrentPassword}
+                  placeholder="Enter your current password"
+                  placeholderTextColor="#9ca3af"
+                  secureTextEntry={!showCurrentPassword}
+                  editable={!loading}
+                  style={[localStyles.input, { paddingRight: 48 }]}
+                />
+                <Pressable
+                  onPress={() => setShowCurrentPassword(!showCurrentPassword)}
+                  disabled={loading}
+                  style={({ pressed }) => ({
+                    position: "absolute",
+                    right: 12,
+                    padding: 8,
+                    opacity: pressed ? 0.6 : 1
+                  })}
+                >
+                  <Ionicons
+                    name={showCurrentPassword ? "eye" : "eye-off"}
+                    size={20}
+                    color="#64748b"
+                  />
+                </Pressable>
+              </View>
             </View>
 
             <View style={localStyles.inputGroup}>
               <Text style={localStyles.label}>New Password</Text>
-              <TextInput
-                value={newPassword}
-                onChangeText={setNewPassword}
-                placeholder="Enter a new password"
-                placeholderTextColor="#9ca3af"
-                secureTextEntry
-                editable={!loading}
-                style={localStyles.input}
-              />
+              <View style={localStyles.inputContainer}>
+                <TextInput
+                  value={newPassword}
+                  onChangeText={setNewPassword}
+                  placeholder="Enter a new password"
+                  placeholderTextColor="#9ca3af"
+                  secureTextEntry={!showNewPassword}
+                  editable={!loading}
+                  style={[localStyles.input, { paddingRight: 48 }]}
+                />
+                <Pressable
+                  onPress={() => setShowNewPassword(!showNewPassword)}
+                  disabled={loading}
+                  style={({ pressed }) => ({
+                    position: "absolute",
+                    right: 12,
+                    padding: 8,
+                    opacity: pressed ? 0.6 : 1
+                  })}
+                >
+                  <Ionicons
+                    name={showNewPassword ? "eye" : "eye-off"}
+                    size={20}
+                    color="#64748b"
+                  />
+                </Pressable>
+              </View>
             </View>
 
             <View style={localStyles.inputGroup}>
               <Text style={localStyles.label}>Confirm New Password</Text>
-              <TextInput
-                value={confirmPassword}
-                onChangeText={setConfirmPassword}
-                placeholder="Confirm your new password"
-                placeholderTextColor="#9ca3af"
-                secureTextEntry
-                editable={!loading}
-                style={localStyles.input}
-              />
+              <View style={localStyles.inputContainer}>
+                <TextInput
+                  value={confirmPassword}
+                  onChangeText={setConfirmPassword}
+                  placeholder="Confirm your new password"
+                  placeholderTextColor="#9ca3af"
+                  secureTextEntry={!showConfirmPassword}
+                  editable={!loading}
+                  style={[localStyles.input, { paddingRight: 48 }]}
+                />
+                <Pressable
+                  onPress={() => setShowConfirmPassword(!showConfirmPassword)}
+                  disabled={loading}
+                  style={({ pressed }) => ({
+                    position: "absolute",
+                    right: 12,
+                    padding: 8,
+                    opacity: pressed ? 0.6 : 1
+                  })}
+                >
+                  <Ionicons
+                    name={showConfirmPassword ? "eye" : "eye-off"}
+                    size={20}
+                    color="#64748b"
+                  />
+                </Pressable>
+              </View>
             </View>
 
             <Pressable
@@ -214,6 +278,7 @@ export default function UpdatePasswordScreen() {
           </View>
         </ScrollView>
       </KeyboardAvoidingView>
-    </SafeAreaView>
+    </View>
   );
 }
+

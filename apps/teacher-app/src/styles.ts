@@ -15,7 +15,7 @@ export const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 8 },
     shadowOpacity: 0.16,
     shadowRadius: 16,
-    elevation: 6
+    elevation: 6.
   },
   heroTopRow: {
     flexDirection: "row",

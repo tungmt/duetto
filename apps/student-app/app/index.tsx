@@ -17,6 +17,7 @@ import ChallengeDetailScreen from "./dashboard/challenge-detail";
 import SubmissionsScreen from "./dashboard/submissions";
 import SubmissionDetailScreen from "./dashboard/submission-detail";
 import ProfileScreen from "./dashboard/profile";
+import TeacherDetailScreen from "./dashboard/teacher-detail";
 
 const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
@@ -81,6 +82,11 @@ function AppStack() {
         name="ChallengeDetail" 
         component={ChallengeDetailScreen}
         options={{ title: "Challenge" }}
+      />
+      <Stack.Screen
+        name="TeacherDetail"
+        component={TeacherDetailScreen}
+        options={{ title: "Teacher Profile" }}
       />
       <Stack.Screen
         name="SubmissionDetail"

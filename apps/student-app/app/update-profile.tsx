@@ -1,10 +1,12 @@
 import { useState } from "react";
-import { Alert, KeyboardAvoidingView, Platform, Pressable, SafeAreaView, ScrollView, Text, TextInput, View } from "react-native";
+import { Alert, KeyboardAvoidingView, Platform, Pressable, ScrollView, Text, TextInput, View } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { api } from "../src/api";
 import nav from "../src/navigation";
 import { styles } from "../src/styles";
 
 export default function UpdateProfileScreen({ navigation }: any) {
+  const insets = useSafeAreaInsets();
   const [displayName, setDisplayName] = useState("Student Dev User");
   const [gradeLevel, setGradeLevel] = useState("");
   const [learningGoal, setLearningGoal] = useState("");
@@ -30,11 +32,23 @@ export default function UpdateProfileScreen({ navigation }: any) {
   }
 
   return (
-    <SafeAreaView style={styles.safe}>
+    <View style={styles.safe}>
       <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : "height"} style={{ flex: 1 }}>
         <ScrollView contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
           <View style={styles.container}>
-            <View style={[styles.heroCard, { marginBottom: 6 }]}>
+            <View
+              style={[
+                styles.heroCard,
+                {
+                  marginBottom: 6,
+                  marginHorizontal: -20,
+                  marginTop: -20,
+                  paddingTop: insets.top + 16,
+                  paddingHorizontal: 16,
+                  paddingBottom: 16
+                }
+              ]}
+            >
               <View style={styles.heroTopRow}>
                 <Text style={styles.heroTitle}>Profile</Text>
               </View>
@@ -92,6 +106,7 @@ export default function UpdateProfileScreen({ navigation }: any) {
           </View>
         </ScrollView>
       </KeyboardAvoidingView>
-    </SafeAreaView>
+    </View>
   );
 }
+

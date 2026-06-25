@@ -1,13 +1,17 @@
 import { useState } from "react";
-import { Alert, KeyboardAvoidingView, Platform, Pressable, SafeAreaView, ScrollView, Text, TextInput, View } from "react-native";
+import { Alert, KeyboardAvoidingView, Platform, Pressable, ScrollView, Text, TextInput, View } from "react-native";
+import { Ionicons } from "@expo/vector-icons";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { api } from "../src/api";
 import nav from "../src/navigation";
 import { saveSession } from "../src/session";
 import { styles } from "../src/styles";
 
 export default function LoginScreen({ navigation }: any) {
+  const insets = useSafeAreaInsets();
   const [email, setEmail] = useState("student@example.com");
   const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
 
   async function login() {
@@ -36,10 +40,20 @@ export default function LoginScreen({ navigation }: any) {
   }
 
   return (
-    <SafeAreaView style={styles.safe}>
+    <View style={styles.safe}>
       <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : "height"} style={{ flex: 1 }}>
         <ScrollView contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
-          <View style={[styles.heroCard, { marginBottom: 16 }]}> 
+          <View
+            style={[
+              styles.heroCard,
+              {
+                marginBottom: 16,
+                paddingTop: insets.top + 16,
+                paddingHorizontal: 16,
+                paddingBottom: 16
+              }
+            ]}
+          >
             <View style={styles.heroTopRow}>
               <Text style={styles.heroTitle}>Welcome Back</Text>
             </View>
@@ -64,15 +78,33 @@ export default function LoginScreen({ navigation }: any) {
 
             <View>
               <Text style={[styles.title, { marginBottom: 8 }]}>Password</Text>
-              <TextInput
-                value={password}
-                onChangeText={setPassword}
-                placeholder="Enter your password"
-                placeholderTextColor="#9ca3af"
-                secureTextEntry
-                editable={!loading}
-                style={styles.input}
-              />
+              <View style={{ flexDirection: "row", alignItems: "center", position: "relative" }}>
+                <TextInput
+                  value={password}
+                  onChangeText={setPassword}
+                  placeholder="Enter your password"
+                  placeholderTextColor="#9ca3af"
+                  secureTextEntry={!showPassword}
+                  editable={!loading}
+                  style={[styles.input, { flex: 1, paddingRight: 48 }]}
+                />
+                <Pressable
+                  onPress={() => setShowPassword(!showPassword)}
+                  disabled={loading}
+                  style={({ pressed }) => ({
+                    position: "absolute",
+                    right: 12,
+                    padding: 8,
+                    opacity: pressed ? 0.6 : 1
+                  })}
+                >
+                  <Ionicons
+                    name={showPassword ? "eye" : "eye-off"}
+                    size={20}
+                    color="#64748b"
+                  />
+                </Pressable>
+              </View>
             </View>
 
             <Pressable
@@ -94,6 +126,7 @@ export default function LoginScreen({ navigation }: any) {
           </View>
         </ScrollView>
       </KeyboardAvoidingView>
-    </SafeAreaView>
+    </View>
   );
 }
+

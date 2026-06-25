@@ -27,18 +27,21 @@ export async function POST(request: NextRequest) {
       return json({ error: "Account disabled" }, { status: 403 });
     }
 
-    // Generate new verification code
+    // Generate and store new verification code with expiry for auditability.
     const verificationCode = String(Math.floor(100000 + Math.random() * 900000));
-    
-    const updatedUser = await prisma.user.update({
-      where: { id: user.id },
+    const verificationExpiresAt = new Date(Date.now() + 15 * 60 * 1000);
+
+    await prisma.verificationCode.create({
       data: {
-        emailVerificationCode: verificationCode
+        userId: user.id,
+        code: verificationCode,
+        type: "EMAIL_VERIFICATION",
+        expiresAt: verificationExpiresAt
       }
     });
 
     // Send verification email
-    await sendVerificationEmail(updatedUser.email, verificationCode);
+    await sendVerificationEmail(user.email, verificationCode);
 
     return json({ message: "Verification email sent" });
   } catch (error) {

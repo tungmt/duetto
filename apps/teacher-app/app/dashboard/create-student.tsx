@@ -1,7 +1,8 @@
 import { RouteProp, useNavigation, useRoute } from "@react-navigation/native";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { useState } from "react";
-import { Alert, KeyboardAvoidingView, Platform, Pressable, SafeAreaView, ScrollView, Text, TextInput, View } from "react-native";
+import { Alert, KeyboardAvoidingView, Platform, Pressable, ScrollView, Text, TextInput, View } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { api } from "../../src/api";
 import { styles } from "../../src/styles";
 
@@ -13,6 +14,7 @@ type CreateStudentNavigationProp = NativeStackNavigationProp<any, "CreateStudent
 
 export default function CreateStudentScreen() {
   const navigation = useNavigation<CreateStudentNavigationProp>();
+  const insets = useSafeAreaInsets();
   const route = useRoute<CreateStudentRoute>();
   const { classId, className } = route.params;
 
@@ -54,11 +56,22 @@ export default function CreateStudentScreen() {
   }
 
   return (
-    <SafeAreaView style={styles.safe}>
+    <View style={styles.safe}>
       <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : "height"} style={{ flex: 1 }}>
         <ScrollView contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
           <View style={styles.container}>
-            <View style={styles.heroCard}>
+            <View
+              style={[
+                styles.heroCard,
+                {
+                  marginHorizontal: -20,
+                  marginTop: -20,
+                  paddingTop: insets.top + 16,
+                  paddingHorizontal: 16,
+                  paddingBottom: 16
+                }
+              ]}
+            >
               <View style={styles.heroTopRow}>
                 <Pressable style={styles.backButton} onPress={() => navigation.goBack()} disabled={loading}>
                   <Text style={styles.backButtonText}>← Back</Text>
@@ -110,6 +123,7 @@ export default function CreateStudentScreen() {
           </View>
         </ScrollView>
       </KeyboardAvoidingView>
-    </SafeAreaView>
+    </View>
   );
 }
+

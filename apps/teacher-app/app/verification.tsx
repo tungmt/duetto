@@ -6,7 +6,6 @@ import {
   KeyboardAvoidingView,
   Platform,
   Pressable,
-  SafeAreaView,
   ScrollView,
   StyleSheet,
   Text,
@@ -101,7 +100,7 @@ export default function VerificationScreen() {
   }
 
   return (
-    <SafeAreaView style={styles.safe}>
+    <View style={styles.safe}>
       <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : "height"} style={{ flex: 1 }}>
         <ScrollView contentContainerStyle={ui.scrollContent} keyboardShouldPersistTaps="handled">
           <View style={ui.topAccent} />
@@ -170,7 +169,7 @@ export default function VerificationScreen() {
           </View>
         </ScrollView>
       </KeyboardAvoidingView>
-    </SafeAreaView>
+    </View>
   );
 }
 
@@ -297,3 +296,4 @@ const ui = StyleSheet.create({
     lineHeight: 18
   }
 });
+

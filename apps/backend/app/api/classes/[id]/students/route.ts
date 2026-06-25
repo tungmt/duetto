@@ -67,7 +67,7 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
           email,
           name: displayName,
           passwordHash,
-          role: "USER",
+          roles: ["USER"],
           accountStatus: "ACTIVE",
           emailVerifiedAt: new Date()
         }

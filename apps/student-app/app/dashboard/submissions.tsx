@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
-import { FlatList, Pressable, SafeAreaView, ScrollView, Text, View } from "react-native";
+import { FlatList, Pressable, ScrollView, Text, View } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { api } from "../../src/api";
 import { styles } from "../../src/styles";
 
@@ -13,6 +14,7 @@ type Answer = {
 };
 
 export default function SubmissionsScreen({ navigation }: any) {
+  const insets = useSafeAreaInsets();
   const [history, setHistory] = useState<Answer[]>([]);
   const [progress, setProgress] = useState<Record<string, number | null>>({});
   const [loading, setLoading] = useState(true);
@@ -35,10 +37,22 @@ export default function SubmissionsScreen({ navigation }: any) {
   }, []);
 
   return (
-    <SafeAreaView style={styles.safe}>
+    <View style={styles.safe}>
       <ScrollView contentContainerStyle={styles.scrollContent}>
         <View style={styles.container}>
-          <View style={[styles.heroCard, { marginBottom: 2 }]}>
+          <View
+            style={[
+              styles.heroCard,
+              {
+                marginBottom: 2,
+                marginHorizontal: -20,
+                marginTop: -20,
+                paddingTop: insets.top + 16,
+                paddingHorizontal: 16,
+                paddingBottom: 16
+              }
+            ]}
+          >
             <View style={styles.heroTopRow}>
               <Text style={styles.heroTitle}>Submissions</Text>
             </View>
@@ -96,6 +110,7 @@ export default function SubmissionsScreen({ navigation }: any) {
           )}
         </View>
       </ScrollView>
-    </SafeAreaView>
+    </View>
   );
 }
+

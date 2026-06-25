@@ -2,7 +2,8 @@ import { ResizeMode, Video } from "expo-av";
 import { useFocusEffect, useNavigation, useRoute } from "@react-navigation/native";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { useCallback, useState } from "react";
-import { Alert, KeyboardAvoidingView, Platform, Pressable, SafeAreaView, ScrollView, Text, TextInput, View } from "react-native";
+import { Alert, KeyboardAvoidingView, Platform, Pressable, ScrollView, Text, TextInput, View } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { api } from "../../src/api";
 import { styles } from "../../src/styles";
 
@@ -30,6 +31,7 @@ type ChallengeResponse = {
 
 export default function SubmissionReviewScreen() {
   const navigation = useNavigation<SubmissionReviewNavigationProp>();
+  const insets = useSafeAreaInsets();
   const route = useRoute();
   const params = (route as SubmissionReviewRoute).params ?? {};
   const challengeId = (params.challengeId ?? "").trim();
@@ -104,10 +106,21 @@ export default function SubmissionReviewScreen() {
   }
 
   return (
-    <SafeAreaView style={styles.safe}>
+    <View style={styles.safe}>
       <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : "height"} style={{ flex: 1 }}>
         <ScrollView contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled">
-          <View style={styles.heroCard}>
+          <View
+            style={[
+              styles.heroCard,
+              {
+                marginHorizontal: -20,
+                marginTop: -20,
+                paddingTop: insets.top + 16,
+                paddingHorizontal: 16,
+                paddingBottom: 16
+              }
+            ]}
+          >
             <View style={styles.heroTopRow}>
               <Pressable style={styles.backButton} onPress={() => navigation.goBack()}>
                 <Text style={styles.backButtonText}>← Back</Text>
@@ -184,6 +197,7 @@ export default function SubmissionReviewScreen() {
           )}
         </ScrollView>
       </KeyboardAvoidingView>
-    </SafeAreaView>
+    </View>
   );
 }
+

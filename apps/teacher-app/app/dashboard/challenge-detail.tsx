@@ -1,13 +1,14 @@
-import { ResizeMode, Video } from "expo-av";
+import { ResizeMode, Video, AVPlaybackStatusSuccess } from "expo-av";
 import { useFocusEffect, useNavigation, useRoute } from "@react-navigation/native";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
-import { useCallback, useMemo, useState } from "react";
-import { Alert, KeyboardAvoidingView, Platform, Pressable, SafeAreaView, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
+import { useCallback, useMemo, useRef, useState } from "react";
+import { Alert, KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { api } from "../../src/api";
 
 type ChallengeDetailNavigationProp = NativeStackNavigationProp<any, "ChallengeDetail">;
 type ChallengeDetailRoute = { params?: { challengeId?: string } };
-type DetailTab = "general" | "answers";
+type DetailTab = "general" | "periods" | "answers";
 
 type Submission = {
   id: string;
@@ -24,8 +25,11 @@ type Challenge = {
   description?: string | null;
   status: "DRAFT" | "PUBLISHED" | "ARCHIVED";
   sourceVideoUrl: string;
+  answerPeriods: AnswerPeriod[];
   submissions: Submission[];
 };
+
+type AnswerPeriod = { startMs: number; endMs: number; label?: string };
 
 function getStatusChipColors(status: Challenge["status"]) {
   if (status === "PUBLISHED") {
@@ -39,6 +43,7 @@ function getStatusChipColors(status: Challenge["status"]) {
 
 export default function ChallengeDetailScreen() {
   const navigation = useNavigation<ChallengeDetailNavigationProp>();
+  const insets = useSafeAreaInsets();
   const route = useRoute();
   const challengeId = ((route as ChallengeDetailRoute).params?.challengeId ?? "").trim();
 
@@ -48,6 +53,13 @@ export default function ChallengeDetailScreen() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [activeTab, setActiveTab] = useState<DetailTab>("general");
+
+  // Answer period editor state
+  const videoRef = useRef<Video | null>(null);
+  const [videoPositionMs, setVideoPositionMs] = useState(0);
+  const [periods, setPeriods] = useState<AnswerPeriod[]>([]);
+  const [pendingStartMs, setPendingStartMs] = useState<number | null>(null);
+  const [savingPeriods, setSavingPeriods] = useState(false);
 
   const sortedSubmissions = useMemo(() => {
     return [...(challenge?.submissions ?? [])].sort((a, b) => {
@@ -68,6 +80,7 @@ export default function ChallengeDetailScreen() {
       setChallenge(nextChallenge);
       setTitle(nextChallenge.title ?? "");
       setDescription(nextChallenge.description ?? "");
+      setPeriods(Array.isArray(nextChallenge.answerPeriods) ? nextChallenge.answerPeriods : []);
     } catch (error) {
       Alert.alert("Error", error instanceof Error ? error.message : "Could not load challenge");
     } finally {
@@ -128,11 +141,66 @@ export default function ChallengeDetailScreen() {
     }
   }
 
+  function formatMs(ms: number) {
+    const totalSecs = Math.floor(ms / 1000);
+    const m = Math.floor(totalSecs / 60);
+    const s = totalSecs % 60;
+    return `${m}:${String(s).padStart(2, "0")}`;
+  }
+
+  function markStart() {
+    setPendingStartMs(videoPositionMs);
+  }
+
+  function markEnd() {
+    if (pendingStartMs === null) return;
+    if (videoPositionMs <= pendingStartMs) {
+      Alert.alert("Invalid range", "End time must be after start time.");
+      return;
+    }
+    const newPeriod: AnswerPeriod = { startMs: pendingStartMs, endMs: videoPositionMs };
+    setPeriods((prev) => [...prev, newPeriod].sort((a, b) => a.startMs - b.startMs));
+    setPendingStartMs(null);
+  }
+
+  function removePeriod(index: number) {
+    setPeriods((prev) => prev.filter((_, i) => i !== index));
+  }
+
+  async function saveAnswerPeriods() {
+    if (!challengeId) return;
+    setSavingPeriods(true);
+    try {
+      await api(`/api/videos/${challengeId}`, {
+        method: "PATCH",
+        body: JSON.stringify({ answerPeriods: periods })
+      });
+      Alert.alert("Saved", "Answer periods saved.");
+      await loadChallenge();
+    } catch (error) {
+      Alert.alert("Error", error instanceof Error ? error.message : "Could not save periods");
+    } finally {
+      setSavingPeriods(false);
+    }
+  }
+
   return (
-    <SafeAreaView style={localStyles.safe}>
+    <View style={localStyles.safe}>
       <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : "height"} style={{ flex: 1 }}>
         <ScrollView contentContainerStyle={localStyles.content} keyboardShouldPersistTaps="handled">
-          <View style={localStyles.heroCard}>
+          <View
+            style={[
+              localStyles.heroCard,
+              {
+                marginHorizontal: -16,
+                marginTop: -16,
+                paddingTop: insets.top + 16,
+                paddingHorizontal: 16,
+                paddingBottom: 16,
+                backgroundColor: "#0f2742"
+              }
+            ]}
+          >
             <View style={localStyles.heroTopRow}>
               <Pressable style={localStyles.backButton} onPress={() => navigation.goBack()}>
                 <Text style={localStyles.backButtonText}>← Back</Text>
@@ -146,6 +214,7 @@ export default function ChallengeDetailScreen() {
           {loading ? (
             <View style={localStyles.centerState}>
               <Text style={localStyles.centerStateText}>Loading challenge...</Text>
+
             </View>
           ) : !challenge ? (
             <View style={localStyles.centerState}>
@@ -169,6 +238,12 @@ export default function ChallengeDetailScreen() {
                   onPress={() => setActiveTab("general")}
                 >
                   <Text style={[localStyles.tabButtonText, activeTab === "general" && localStyles.tabButtonTextActive]}>Video & Info</Text>
+                </Pressable>
+                <Pressable
+                  style={[localStyles.tabButton, activeTab === "periods" && localStyles.tabButtonActive]}
+                  onPress={() => setActiveTab("periods")}
+                >
+                  <Text style={[localStyles.tabButtonText, activeTab === "periods" && localStyles.tabButtonTextActive]}>Answer Periods</Text>
                 </Pressable>
                 <Pressable
                   style={[localStyles.tabButton, activeTab === "answers" && localStyles.tabButtonActive]}
@@ -267,11 +342,169 @@ export default function ChallengeDetailScreen() {
                   )}
                 </View>
               )}
+              {activeTab === "general" ? (
+                <View style={localStyles.panelCard}>
+                  <Text style={localStyles.blockTitle}>Challenge Video</Text>
+                  <View style={localStyles.videoFrame}>
+                    <Video
+                      ref={(r) => { videoRef.current = r; }}
+                      source={{ uri: challenge.sourceVideoUrl }}
+                      style={localStyles.video}
+                      resizeMode={ResizeMode.CONTAIN}
+                      useNativeControls
+                      onPlaybackStatusUpdate={(s) => {
+                        if (s.isLoaded) setVideoPositionMs(s.positionMillis ?? 0);
+                      }}
+                    />
+                  </View>
+                  <View>
+                    <Text style={localStyles.label}>Title</Text>
+                    <TextInput
+                      value={title}
+                      onChangeText={setTitle}
+                      editable={!saving}
+                      placeholder="Challenge title"
+                      placeholderTextColor="#9ca3af"
+                      style={localStyles.input}
+                    />
+                  </View>
+                  <View>
+                    <Text style={localStyles.label}>Description</Text>
+                    <TextInput
+                      value={description}
+                      onChangeText={setDescription}
+                      editable={!saving}
+                      multiline
+                      numberOfLines={3}
+                      placeholder="Challenge description"
+                      placeholderTextColor="#9ca3af"
+                      style={[localStyles.input, localStyles.inputMultiline]}
+                    />
+                  </View>
+                  <Pressable style={[localStyles.primaryButton, saving && localStyles.buttonDisabled]} onPress={saveInfo} disabled={saving}>
+                    <Text style={localStyles.primaryButtonText}>{saving ? "Saving..." : "Save Challenge Info"}</Text>
+                  </Pressable>
+                  {challenge.status !== "PUBLISHED" ? (
+                    <Pressable
+                      style={[localStyles.secondaryButton, saving && localStyles.buttonDisabled]}
+                      onPress={() => setPublishStatus("PUBLISHED")}
+                      disabled={saving}
+                    >
+                      <Text style={localStyles.secondaryButtonText}>Publish Challenge</Text>
+                    </Pressable>
+                  ) : (
+                    <Pressable
+                      style={[localStyles.secondaryButton, saving && localStyles.buttonDisabled]}
+                      onPress={() => setPublishStatus("DRAFT")}
+                      disabled={saving}
+                    >
+                      <Text style={localStyles.secondaryButtonText}>Move Back To Draft</Text>
+                    </Pressable>
+                  )}
+                </View>
+              ) : activeTab === "periods" ? (
+                <View style={localStyles.panelCard}>
+                  <Text style={localStyles.blockTitle}>Answer Period Editor</Text>
+                  <Text style={{ color: "#64748b", fontSize: 13, lineHeight: 19 }}>
+                    Play the video below. When you reach the moment students should start answering, press{" "}
+                    <Text style={{ fontWeight: "700", color: "#0369a1" }}>Mark Start</Text>. When the answer window closes, press{" "}
+                    <Text style={{ fontWeight: "700", color: "#0369a1" }}>Mark End</Text>. Repeat for multiple periods. Save when done.
+                  </Text>
+                  <View style={localStyles.videoFrame}>
+                    <Video
+                      ref={(r) => { videoRef.current = r; }}
+                      source={{ uri: challenge.sourceVideoUrl }}
+                      style={localStyles.video}
+                      resizeMode={ResizeMode.CONTAIN}
+                      useNativeControls
+                      onPlaybackStatusUpdate={(s) => {
+                        if (s.isLoaded) setVideoPositionMs(s.positionMillis ?? 0);
+                      }}
+                    />
+                  </View>
+                  <View style={{ backgroundColor: "#f0f9ff", borderRadius: 12, padding: 12, alignItems: "center" }}>
+                    <Text style={{ color: "#0369a1", fontSize: 22, fontWeight: "800", letterSpacing: 0.5 }}>
+                      {formatMs(videoPositionMs)}
+                    </Text>
+                    <Text style={{ color: "#64748b", fontSize: 12, marginTop: 2 }}>current video position</Text>
+                  </View>
+                  <View style={{ flexDirection: "row", gap: 10 }}>
+                    <Pressable
+                      style={[localStyles.primaryButton, { flex: 1, backgroundColor: pendingStartMs !== null ? "#64748b" : "#0369a1" }]}
+                      onPress={markStart}
+                    >
+                      <Text style={localStyles.primaryButtonText}>
+                        {pendingStartMs !== null ? `Start: ${formatMs(pendingStartMs)}` : "▶ Mark Start"}
+                      </Text>
+                    </Pressable>
+                    <Pressable
+                      style={[localStyles.primaryButton, { flex: 1, backgroundColor: pendingStartMs === null ? "#94a3b8" : "#0369a1" }]}
+                      onPress={markEnd}
+                      disabled={pendingStartMs === null}
+                    >
+                      <Text style={localStyles.primaryButtonText}>⏹ Mark End</Text>
+                    </Pressable>
+                  </View>
+                  {periods.length > 0 ? (
+                    <View style={{ gap: 8 }}>
+                      <Text style={[localStyles.label, { marginBottom: 0 }]}>Defined Periods</Text>
+                      {periods.map((p, i) => (
+                        <View key={i} style={{ flexDirection: "row", alignItems: "center", backgroundColor: "#f8fafc", borderRadius: 10, padding: 10, borderWidth: 1, borderColor: "#dbe4ef" }}>
+                          <Text style={{ flex: 1, color: "#0f172a", fontWeight: "700", fontSize: 14 }}>
+                            {i + 1}. {formatMs(p.startMs)} → {formatMs(p.endMs)}
+                          </Text>
+                          <Pressable onPress={() => removePeriod(i)} style={{ paddingHorizontal: 10, paddingVertical: 6 }}>
+                            <Text style={{ color: "#ef4444", fontWeight: "800", fontSize: 14 }}>✕</Text>
+                          </Pressable>
+                        </View>
+                      ))}
+                    </View>
+                  ) : (
+                    <View style={{ backgroundColor: "#f8fafc", borderRadius: 10, padding: 14, alignItems: "center", borderWidth: 1, borderColor: "#dbe4ef" }}>
+                      <Text style={{ color: "#94a3b8", fontSize: 14 }}>No periods defined yet. Use the buttons above while the video plays.</Text>
+                    </View>
+                  )}
+                  <Pressable
+                    style={[localStyles.primaryButton, savingPeriods && localStyles.buttonDisabled]}
+                    onPress={saveAnswerPeriods}
+                    disabled={savingPeriods}
+                  >
+                    <Text style={localStyles.primaryButtonText}>{savingPeriods ? "Saving..." : "Save Answer Periods"}</Text>
+                  </Pressable>
+                </View>
+              ) : (
+                <View>
+                  <Text style={localStyles.sectionTitle}>Answer Videos</Text>
+                  {sortedSubmissions.length === 0 ? (
+                    <View style={localStyles.answerRow}>
+                      <Text style={localStyles.answerMeta}>No answers submitted yet.</Text>
+                    </View>
+                  ) : (
+                    sortedSubmissions.map((submission) => (
+                      <Pressable
+                        key={submission.id}
+                        style={localStyles.answerRow}
+                        onPress={() =>
+                          navigation.navigate("SubmissionReview", {
+                            challengeId: challenge.id,
+                            submissionId: submission.id
+                          })
+                        }
+                      >
+                        <Text style={localStyles.answerName}>{submission.student?.name ?? "Student"}</Text>
+                        <Text style={localStyles.answerMeta}>Status: {submission.status}</Text>
+                        <Text style={localStyles.answerMeta}>Score: {submission.score ?? "Not graded"}</Text>
+                        <Text style={localStyles.answerLink}>Open answer review →</Text>
+                      </Pressable>
+                    ))
+                  )}
+                </View>
+              )}
             </>
           )}
         </ScrollView>
       </KeyboardAvoidingView>
-    </SafeAreaView>
+    </View>
   );
 }
 
@@ -512,3 +745,4 @@ const localStyles = StyleSheet.create({
     fontWeight: "600"
   }
 });
+

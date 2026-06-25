@@ -17,21 +17,50 @@ export async function POST(request: NextRequest) {
       where: { email: input.email.toLowerCase() }
     });
 
-    if (!user || user.emailVerificationCode !== input.code) {
+    if (!user) {
       return json({ error: "Invalid verification code" }, { status: 400 });
     }
 
-    const verifiedUser = await prisma.user.update({
-      where: { id: user.id },
-      data: {
-        accountStatus: "ACTIVE",
-        emailVerifiedAt: new Date(),
-        emailVerificationCode: null
+    const now = new Date();
+    const verificationRecord = await prisma.verificationCode.findFirst({
+      where: {
+        userId: user.id,
+        code: input.code,
+        type: "EMAIL_VERIFICATION",
+        isUsed: false,
+        expiresAt: {
+          gt: now
+        }
       },
-      include: {
-        teacherProfile: true,
-        studentProfile: true
+      orderBy: {
+        createdAt: "desc"
       }
+    });
+
+    if (!verificationRecord) {
+      return json({ error: "Invalid or expired verification code" }, { status: 400 });
+    }
+
+    const verifiedUser = await prisma.$transaction(async (tx) => {
+      await tx.verificationCode.update({
+        where: { id: verificationRecord.id },
+        data: {
+          isUsed: true,
+          usedAt: now
+        }
+      });
+
+      return tx.user.update({
+        where: { id: user.id },
+        data: {
+          accountStatus: "ACTIVE",
+          emailVerifiedAt: now
+        },
+        include: {
+          teacherProfile: true,
+          studentProfile: true
+        }
+      });
     });
 
     await sendWelcomeEmail(verifiedUser.email, verifiedUser.name);

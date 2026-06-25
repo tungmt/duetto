@@ -1,18 +1,22 @@
 import { useNavigation } from "@react-navigation/native";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { useState } from "react";
-import { Alert, KeyboardAvoidingView, Platform, Pressable, SafeAreaView, ScrollView, Text, TextInput, View } from "react-native";
+import { Alert, KeyboardAvoidingView, Platform, Pressable, ScrollView, Text, TextInput, View } from "react-native";
+import { Ionicons } from "@expo/vector-icons";
 import { ApiError, api } from "../src/api";
 import nav from "../src/navigation";
 import { saveSession } from "../src/session";
 import { styles } from "../src/styles";
+import {useSafeAreaInsets} from "react-native-safe-area-context";
 
 type LoginScreenNavigationProp = NativeStackNavigationProp<any, "Login">;
 
 export default function LoginScreen() {
   const navigation = useNavigation<LoginScreenNavigationProp>();
-  const [email, setEmail] = useState("teacher@example.com");
+  const insets = useSafeAreaInsets();
+  const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
 
   async function login() {
@@ -61,10 +65,20 @@ export default function LoginScreen() {
   }
 
   return (
-    <SafeAreaView style={styles.safe}>
+    <View style={[styles.safe]}>
       <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : "height"} style={{ flex: 1 }}>
         <ScrollView contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
-          <View style={[styles.heroCard, { marginBottom: 16 }]}> 
+          <View
+            style={[
+              styles.heroCard,
+              {
+                marginBottom: 16,
+                paddingTop: insets.top + 16,
+                paddingHorizontal: 16,
+                paddingBottom: 16
+              }
+            ]}
+          >
             <View style={styles.heroTopRow}>
               <Text style={styles.heroTitle}>Welcome Back</Text>
             </View>
@@ -72,7 +86,7 @@ export default function LoginScreen() {
             <Text style={styles.heroSubtitle}>Sign in to your teacher account.</Text>
           </View>
 
-          <View style={{ gap: 12 }}>
+          <View style={{ gap: 12, paddingHorizontal: 16 }}>
             <View>
               <Text style={[styles.title, { marginBottom: 8 }]}>Email</Text>
               <TextInput
@@ -89,15 +103,33 @@ export default function LoginScreen() {
 
             <View>
               <Text style={[styles.title, { marginBottom: 8 }]}>Password</Text>
-              <TextInput
-                value={password}
-                onChangeText={setPassword}
-                placeholder="Enter your password"
-                placeholderTextColor="#9ca3af"
-                secureTextEntry
-                editable={!loading}
-                style={styles.input}
-              />
+              <View style={{ flexDirection: "row", alignItems: "center", position: "relative" }}>
+                <TextInput
+                  value={password}
+                  onChangeText={setPassword}
+                  placeholder="Enter your password"
+                  placeholderTextColor="#9ca3af"
+                  secureTextEntry={!showPassword}
+                  editable={!loading}
+                  style={[styles.input, { flex: 1, paddingRight: 48 }]}
+                />
+                <Pressable
+                  onPress={() => setShowPassword(!showPassword)}
+                  disabled={loading}
+                  style={({ pressed }) => ({
+                    position: "absolute",
+                    right: 12,
+                    padding: 8,
+                    opacity: pressed ? 0.6 : 1
+                  })}
+                >
+                  <Ionicons
+                    name={showPassword ? "eye" : "eye-off"}
+                    size={20}
+                    color="#64748b"
+                  />
+                </Pressable>
+              </View>
             </View>
 
             <Pressable
@@ -109,7 +141,7 @@ export default function LoginScreen() {
             </Pressable>
           </View>
 
-          <View style={{ marginTop: 24, gap: 12 }}>
+          <View style={{ marginTop: 24, gap: 12, paddingHorizontal: 16 }}>
             <Pressable style={styles.buttonSecondary} onPress={() => navigation.navigate("Register")}>
               <Text style={styles.buttonSecondaryText}>Create a new account</Text>
             </Pressable>
@@ -119,6 +151,8 @@ export default function LoginScreen() {
           </View>
         </ScrollView>
       </KeyboardAvoidingView>
-    </SafeAreaView>
+    </View>
   );
 }
+
+

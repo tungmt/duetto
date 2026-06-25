@@ -1,4 +1,4 @@
-﻿import { ResizeMode, Video } from "expo-av";
+import { ResizeMode, Video } from "expo-av";
 import * as ImagePicker from "expo-image-picker";
 import { useNavigation } from "@react-navigation/native";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
@@ -9,46 +9,29 @@ import {
   KeyboardAvoidingView,
   Platform,
   Pressable,
-  SafeAreaView,
   ScrollView,
   StyleSheet,
   Text,
   TextInput,
   View
 } from "react-native";
+import { Ionicons } from "@expo/vector-icons";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { api } from "../src/api";
+import { styles } from "../src/styles";
 
 type RecordVideoScreenNavigationProp = NativeStackNavigationProp<any, "RecordVideo">;
 type ChallengeStatus = "DRAFT" | "PUBLISHED";
+type AnswerPeriod = {
+  id: string;
+  startSeconds: number;
+  endSeconds: number;
+};
 
 const localStyles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: "#eef3f8"
-  },
-  header: {
-    padding: 16,
-    backgroundColor: "#ffffff",
-    borderBottomWidth: 1,
-    borderBottomColor: "#dbe4ef"
-  },
-  headerTitle: {
-    fontSize: 24,
-    fontWeight: "800",
-    color: "#0f172a"
-  },
-  headerSubtitle: {
-    fontSize: 14,
-    color: "#64748b",
-    marginTop: 4
-  },
-  content: {
-    padding: 16,
-    gap: 16
-  },
   previewCard: {
     backgroundColor: "#0b1220",
-    borderRadius: 12,
+    borderRadius: 16,
     overflow: "hidden",
     aspectRatio: 16 / 9,
     marginBottom: 8
@@ -84,68 +67,6 @@ const localStyles = StyleSheet.create({
     fontSize: 14,
     marginTop: 8
   },
-  selectButton: {
-    backgroundColor: "#0369a1",
-    paddingVertical: 12,
-    borderRadius: 12,
-    alignItems: "center",
-    marginBottom: 16
-  },
-  selectButtonText: {
-    color: "#fff",
-    fontSize: 16,
-    fontWeight: "600"
-  },
-  formSection: {
-    gap: 12
-  },
-  label: {
-    fontSize: 14,
-    fontWeight: "700",
-    color: "#0f172a",
-    marginBottom: 8
-  },
-  input: {
-    backgroundColor: "#f8fafc",
-    borderRadius: 12,
-    paddingHorizontal: 14,
-    paddingVertical: 12,
-    fontSize: 16,
-    borderWidth: 1,
-    borderColor: "#dbe4ef",
-    color: "#0f172a"
-  },
-  textArea: {
-    minHeight: 100,
-    textAlignVertical: "top"
-  },
-  submitButton: {
-    backgroundColor: "#0284c7",
-    paddingVertical: 12,
-    borderRadius: 12,
-    alignItems: "center",
-    marginTop: 16
-  },
-  submitButtonDisabled: {
-    backgroundColor: "#ccc"
-  },
-  submitButtonText: {
-    color: "#fff",
-    fontSize: 16,
-    fontWeight: "600"
-  },
-  backButton: {
-    paddingVertical: 12,
-    borderRadius: 12,
-    alignItems: "center",
-    marginTop: 8,
-    backgroundColor: "#e2e8f0"
-  },
-  backButtonText: {
-    color: "#0f172a",
-    fontSize: 14,
-    fontWeight: "700"
-  },
   uploadProgressWrap: {
     backgroundColor: "#ffffff",
     borderRadius: 12,
@@ -169,11 +90,64 @@ const localStyles = StyleSheet.create({
     height: "100%",
     borderRadius: 999,
     backgroundColor: "#2563eb"
+  },
+  answerPeriodCard: {
+    backgroundColor: "#f8fafc",
+    borderColor: "#dbe4ef",
+    borderRadius: 12,
+    borderWidth: 1,
+    padding: 12,
+    gap: 8,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between"
+  },
+  answerPeriodTime: {
+    flex: 1,
+    fontSize: 14,
+    color: "#0f172a",
+    fontWeight: "600"
+  },
+  answerPeriodInput: {
+    backgroundColor: "#f8fafc",
+    borderColor: "#dbe4ef",
+    borderRadius: 8,
+    borderWidth: 1,
+    paddingHorizontal: 8,
+    paddingVertical: 6,
+    fontSize: 14,
+    color: "#0f172a",
+    width: "100%"
+  },
+  answerPeriodInputsRow: {
+    flexDirection: "row",
+    gap: 10
+  },
+  answerPeriodInputWrap: {
+    flex: 1,
+    gap: 6
+  },
+  answerPeriodAddButtonContent: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 6
+  },
+  answerPeriodAddButtonText: {
+    color: "#fff",
+    fontSize: 14,
+    fontWeight: "700"
+  },
+  answerPeriodEmpty: {
+    color: "#64748b",
+    fontSize: 13,
+    fontWeight: "500"
   }
 });
 
 export default function RecordVideoScreen() {
   const navigation = useNavigation<RecordVideoScreenNavigationProp>();
+  const insets = useSafeAreaInsets();
   const [videoUri, setVideoUri] = useState("");
   const [videoFileName, setVideoFileName] = useState("challenge-video.mp4");
   const [videoContentType, setVideoContentType] = useState("video/mp4");
@@ -183,6 +157,9 @@ export default function RecordVideoScreen() {
   const [videoLoading, setVideoLoading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState<number | null>(null);
   const [submittingAs, setSubmittingAs] = useState<ChallengeStatus | null>(null);
+  const [answerPeriods, setAnswerPeriods] = useState<AnswerPeriod[]>([]);
+  const [newPeriodStart, setNewPeriodStart] = useState("");
+  const [newPeriodEnd, setNewPeriodEnd] = useState("");
 
   async function selectVideo() {
     try {
@@ -251,6 +228,34 @@ export default function RecordVideoScreen() {
     });
   }
 
+  function addAnswerPeriod() {
+    const start = parseInt(newPeriodStart) || 0;
+    const end = parseInt(newPeriodEnd) || 0;
+    
+    if (start < 0 || end < 0) {
+      Alert.alert("Invalid time", "Times must be positive numbers.");
+      return;
+    }
+    if (start >= end) {
+      Alert.alert("Invalid range", "Start time must be before end time.");
+      return;
+    }
+    
+    const newPeriod: AnswerPeriod = {
+      id: Date.now().toString(),
+      startSeconds: start,
+      endSeconds: end
+    };
+    
+    setAnswerPeriods([...answerPeriods, newPeriod]);
+    setNewPeriodStart("");
+    setNewPeriodEnd("");
+  }
+
+  function removeAnswerPeriod(id: string) {
+    setAnswerPeriods(answerPeriods.filter(p => p.id !== id));
+  }
+
   async function submitChallenge(status: ChallengeStatus) {
     if (!videoUri) {
       Alert.alert("Missing video", "Please select a video first.");
@@ -286,7 +291,11 @@ export default function RecordVideoScreen() {
           title: title.trim(),
           description: description.trim(),
           sourceVideoUrl: uploadInfo.publicUrl,
-          status
+          status,
+          answerPeriods: answerPeriods.map(p => ({
+            startSeconds: p.startSeconds,
+            endSeconds: p.endSeconds
+          }))
         })
       });
 
@@ -302,104 +311,203 @@ export default function RecordVideoScreen() {
   }
 
   return (
-    <SafeAreaView style={localStyles.container}>
+    <View style={styles.safe}>
       <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : "height"} style={{ flex: 1 }}>
-        <ScrollView contentContainerStyle={localStyles.content} keyboardShouldPersistTaps="handled">
-          <View style={localStyles.header}>
-            <Text style={localStyles.headerTitle}>Create Challenge</Text>
-            <Text style={localStyles.headerSubtitle}>Select and preview your video</Text>
-          </View>
+        <ScrollView contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
+          <View style={styles.container}>
+            <View
+              style={[
+                styles.heroCard,
+                {
+                  backgroundColor: "#0f2742",
+                  marginBottom: 16,
+                  marginHorizontal: -20,
+                  marginTop: -20,
+                  paddingTop: insets.top + 16,
+                  paddingHorizontal: 16,
+                  paddingBottom: 16
+                }
+              ]}
+            >
+              <View style={styles.heroTopRow}>
+                <Pressable style={styles.backButton} onPress={() => navigation.goBack()} disabled={loading}>
+                  <Text style={styles.backButtonText}>
+                    <Ionicons name="chevron-back" size={14} color="#dbeafe" /> Back
+                  </Text>
+                </Pressable>
+                <Text style={styles.heroTitle}>Create Challenge</Text>
+              </View>
+              <Text style={styles.heroEyebrow}>Video Challenge</Text>
+              <Text style={styles.heroSubtitle}>Select and preview your video</Text>
+            </View>
 
-          <View style={localStyles.previewCard}>
-            {videoUri ? (
-              <>
-                <Video
-                  source={{ uri: videoUri }}
-                  style={localStyles.video}
-                  resizeMode={ResizeMode.CONTAIN}
-                  useNativeControls
-                  progressUpdateIntervalMillis={500}
-                  onLoad={() => setVideoLoading(false)}
-                />
-                {videoLoading && (
-                  <View style={localStyles.loadingOverlay}>
-                    <ActivityIndicator size="large" color="#fff" />
-                    <Text style={localStyles.loadingText}>Loading video...</Text>
+            <View>
+              <Text style={styles.sectionTitle}>Challenge Details</Text>
+              <View style={styles.card}>
+                <View>
+                  <Text style={styles.title}>Challenge Title</Text>
+                  <TextInput
+                    value={title}
+                    onChangeText={setTitle}
+                    placeholder="e.g., Scales Practice"
+                    placeholderTextColor="#9ca3af"
+                    editable={!loading}
+                    style={styles.input}
+                  />
+                </View>
+
+                <View>
+                  <Text style={styles.title}>Description (Optional)</Text>
+                  <TextInput
+                    value={description}
+                    onChangeText={setDescription}
+                    placeholder="Add instructions or coaching notes for students"
+                    placeholderTextColor="#9ca3af"
+                    multiline
+                    editable={!loading}
+                    style={[styles.input, styles.inputMultiline]}
+                  />
+                </View>
+              </View>
+            </View>
+
+            <View>
+              <Text style={styles.sectionTitle}>Video</Text>
+              <Pressable style={[styles.button, loading && styles.buttonDisabled]} onPress={selectVideo} disabled={loading}>
+                <Text style={styles.buttonText}>{videoUri ? "Change Video" : "Select Video from Library"}</Text>
+              </Pressable>
+            </View>
+
+            <View style={localStyles.previewCard}>
+              {videoUri ? (
+                <>
+                  <Video
+                    source={{ uri: videoUri }}
+                    style={localStyles.video}
+                    resizeMode={ResizeMode.CONTAIN}
+                    useNativeControls
+                    progressUpdateIntervalMillis={500}
+                    onLoad={() => setVideoLoading(false)}
+                  />
+                  {videoLoading && (
+                    <View style={localStyles.loadingOverlay}>
+                      <ActivityIndicator size="large" color="#fff" />
+                      <Text style={localStyles.loadingText}>Loading video...</Text>
+                    </View>
+                  )}
+                </>
+              ) : (
+                <View style={localStyles.emptyPreview}>
+                  <Text style={localStyles.emptyPreviewText}>No video selected</Text>
+                </View>
+              )}
+            </View>
+
+            <View>
+              <Text style={styles.sectionTitle}>Answer Periods (Optional)</Text>
+              <Text style={styles.subtitle}>Mark time ranges when students should answer</Text>
+              <View style={styles.card}>
+                <View style={{ gap: 12 }}>
+                  <View style={localStyles.answerPeriodInputsRow}>
+                    <View style={localStyles.answerPeriodInputWrap}>
+                      <Text style={styles.title}>Start (sec)</Text>
+                      <TextInput
+                        value={newPeriodStart}
+                        onChangeText={setNewPeriodStart}
+                        placeholder="0"
+                        placeholderTextColor="#9ca3af"
+                        keyboardType="number-pad"
+                        editable={!loading}
+                        style={localStyles.answerPeriodInput}
+                      />
+                    </View>
+                    <View style={localStyles.answerPeriodInputWrap}>
+                      <Text style={styles.title}>End (sec)</Text>
+                      <TextInput
+                        value={newPeriodEnd}
+                        onChangeText={setNewPeriodEnd}
+                        placeholder="0"
+                        placeholderTextColor="#9ca3af"
+                        keyboardType="number-pad"
+                        editable={!loading}
+                        style={localStyles.answerPeriodInput}
+                      />
+                    </View>
                   </View>
-                )}
-              </>
-            ) : (
-              <View style={localStyles.emptyPreview}>
-                <Text style={localStyles.emptyPreviewText}>No video selected</Text>
+
+                  <Pressable
+                    style={[styles.button, (!newPeriodStart || !newPeriodEnd || loading) && styles.buttonDisabled]}
+                    onPress={addAnswerPeriod}
+                    disabled={!newPeriodStart || !newPeriodEnd || loading}
+                  >
+                    <View style={localStyles.answerPeriodAddButtonContent}>
+                      <Ionicons name="add-circle-outline" size={18} color="#fff" />
+                      <Text style={localStyles.answerPeriodAddButtonText}>Add Answer Period</Text>
+                    </View>
+                  </Pressable>
+
+                  {answerPeriods.length === 0 ? (
+                    <Text style={localStyles.answerPeriodEmpty}>No periods added yet.</Text>
+                  ) : null}
+
+                  {answerPeriods.length > 0 && (
+                    <View style={{ gap: 8 }}>
+                      {answerPeriods.map((period) => (
+                        <View key={period.id} style={localStyles.answerPeriodCard}>
+                          <Text style={localStyles.answerPeriodTime}>
+                            {period.startSeconds}s - {period.endSeconds}s
+                          </Text>
+                          <Pressable
+                            onPress={() => removeAnswerPeriod(period.id)}
+                            disabled={loading}
+                            style={({ pressed }) => ({ opacity: pressed ? 0.6 : 1 })}
+                          >
+                            <Ionicons name="close-circle" size={20} color="#ef4444" />
+                          </Pressable>
+                        </View>
+                      ))}
+                    </View>
+                  )}
+                </View>
               </View>
-            )}
-          </View>
+            </View>
 
-          <Pressable style={localStyles.selectButton} onPress={selectVideo} disabled={loading}>
-            <Text style={localStyles.selectButtonText}>{videoUri ? "Change Video" : "Select Video from Library"}</Text>
-          </Pressable>
-
-          {loading && uploadProgress !== null ? (
-            <View style={localStyles.uploadProgressWrap}>
-              <Text style={localStyles.uploadProgressLabel}>Uploading video: {uploadProgress}%</Text>
-              <View style={localStyles.uploadProgressTrack}>
-                <View style={[localStyles.uploadProgressFill, { width: `${uploadProgress}%` }]} />
+            {loading && uploadProgress !== null ? (
+              <View style={localStyles.uploadProgressWrap}>
+                <Text style={localStyles.uploadProgressLabel}>Uploading video: {uploadProgress}%</Text>
+                <View style={localStyles.uploadProgressTrack}>
+                  <View style={[localStyles.uploadProgressFill, { width: `${uploadProgress}%` }]} />
+                </View>
               </View>
-            </View>
-          ) : null}
+            ) : null}
 
-          <View style={localStyles.formSection}>
-            <View>
-              <Text style={localStyles.label}>Challenge Title</Text>
-              <TextInput
-                value={title}
-                onChangeText={setTitle}
-                placeholder="e.g., Scales Practice"
-                placeholderTextColor="#999"
-                editable={!loading}
-                style={localStyles.input}
-              />
-            </View>
+            <Pressable
+              style={[styles.button, (!videoUri || loading) && styles.buttonDisabled]}
+              onPress={() => submitChallenge("PUBLISHED")}
+              disabled={!videoUri || loading}
+            >
+              <Text style={styles.buttonText}>
+                {loading && submittingAs === "PUBLISHED" ? "Uploading and publishing..." : "Publish Challenge"}
+              </Text>
+            </Pressable>
 
-            <View>
-              <Text style={localStyles.label}>Description (Optional)</Text>
-              <TextInput
-                value={description}
-                onChangeText={setDescription}
-                placeholder="Add instructions or coaching notes for students"
-                placeholderTextColor="#999"
-                multiline
-                editable={!loading}
-                style={[localStyles.input, localStyles.textArea]}
-              />
-            </View>
+            <Pressable
+              style={[styles.buttonSecondary, (!videoUri || loading) && styles.buttonDisabled]}
+              onPress={() => submitChallenge("DRAFT")}
+              disabled={!videoUri || loading}
+            >
+              <Text style={styles.buttonSecondaryText}>
+                {loading && submittingAs === "DRAFT" ? "Uploading and saving draft..." : "Save As Draft"}
+              </Text>
+            </Pressable>
+
+            <Pressable style={[styles.buttonSecondary, loading && styles.buttonDisabled]} onPress={() => navigation.goBack()} disabled={loading}>
+              <Text style={styles.buttonSecondaryText}>Cancel</Text>
+            </Pressable>
           </View>
-
-          <Pressable
-            style={[localStyles.submitButton, !videoUri || loading ? localStyles.submitButtonDisabled : null]}
-            onPress={() => submitChallenge("PUBLISHED")}
-            disabled={!videoUri || loading}
-          >
-            <Text style={localStyles.submitButtonText}>
-              {loading && submittingAs === "PUBLISHED" ? "Uploading and publishing..." : "Publish Challenge"}
-            </Text>
-          </Pressable>
-
-          <Pressable
-            style={[localStyles.backButton, !videoUri || loading ? localStyles.submitButtonDisabled : null]}
-            onPress={() => submitChallenge("DRAFT")}
-            disabled={!videoUri || loading}
-          >
-            <Text style={localStyles.backButtonText}>
-              {loading && submittingAs === "DRAFT" ? "Uploading and saving draft..." : "Save As Draft"}
-            </Text>
-          </Pressable>
-
-          <Pressable style={localStyles.backButton} onPress={() => navigation.goBack()} disabled={loading}>
-            <Text style={localStyles.backButtonText}>Cancel</Text>
-          </Pressable>
         </ScrollView>
       </KeyboardAvoidingView>
-    </SafeAreaView>
+    </View>
   );
 }
+

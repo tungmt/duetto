@@ -1,14 +1,19 @@
 import { useEffect, useState } from "react";
-import { Alert, KeyboardAvoidingView, Platform, Pressable, SafeAreaView, ScrollView, Text, TextInput, View } from "react-native";
+import { Alert, KeyboardAvoidingView, Platform, Pressable, ScrollView, Text, TextInput, View } from "react-native";
+import { Ionicons } from "@expo/vector-icons";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { api } from "../../src/api";
 import nav from "../../src/navigation";
 import { clearSession } from "../../src/session";
 import { styles } from "../../src/styles";
 
 export default function ProfileScreen({ navigation }: any) {
+  const insets = useSafeAreaInsets();
   const [profile, setProfile] = useState<{ displayName?: string; learningGoal?: string } | null>(null);
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
+  const [showCurrentPassword, setShowCurrentPassword] = useState(false);
+  const [showNewPassword, setShowNewPassword] = useState(false);
   const [loading, setLoading] = useState(false);
 
   async function refresh() {
@@ -70,11 +75,23 @@ export default function ProfileScreen({ navigation }: any) {
   }, []);
 
   return (
-    <SafeAreaView style={styles.safe}>
+    <View style={styles.safe}>
       <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : "height"} style={{ flex: 1 }}>
         <ScrollView contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
           <View style={styles.container}>
-            <View style={[styles.heroCard, { marginBottom: 2 }]}>
+            <View
+              style={[
+                styles.heroCard,
+                {
+                  marginBottom: 2,
+                  marginHorizontal: -20,
+                  marginTop: -20,
+                  paddingTop: insets.top + 16,
+                  paddingHorizontal: 16,
+                  paddingBottom: 16
+                }
+              ]}
+            >
               <View style={styles.heroTopRow}>
                 <Text style={styles.heroTitle}>Profile</Text>
               </View>
@@ -97,27 +114,63 @@ export default function ProfileScreen({ navigation }: any) {
             <View style={{ gap: 12 }}>
               <View>
                 <Text style={[styles.title, { marginBottom: 8 }]}>Current Password</Text>
-                <TextInput
-                  value={currentPassword}
-                  onChangeText={setCurrentPassword}
-                  placeholder="Enter current password"
-                  placeholderTextColor="#9ca3af"
-                  secureTextEntry
-                  editable={!loading}
-                  style={styles.input}
-                />
+                <View style={{ flexDirection: "row", alignItems: "center", position: "relative" }}>
+                  <TextInput
+                    value={currentPassword}
+                    onChangeText={setCurrentPassword}
+                    placeholder="Enter current password"
+                    placeholderTextColor="#9ca3af"
+                    secureTextEntry={!showCurrentPassword}
+                    editable={!loading}
+                    style={[styles.input, { flex: 1, paddingRight: 48 }]}
+                  />
+                  <Pressable
+                    onPress={() => setShowCurrentPassword(!showCurrentPassword)}
+                    disabled={loading}
+                    style={({ pressed }) => ({
+                      position: "absolute",
+                      right: 12,
+                      padding: 8,
+                      opacity: pressed ? 0.6 : 1
+                    })}
+                  >
+                    <Ionicons
+                      name={showCurrentPassword ? "eye" : "eye-off"}
+                      size={20}
+                      color="#64748b"
+                    />
+                  </Pressable>
+                </View>
               </View>
               <View>
                 <Text style={[styles.title, { marginBottom: 8 }]}>New Password</Text>
-                <TextInput
-                  value={newPassword}
-                  onChangeText={setNewPassword}
-                  placeholder="Enter new password"
-                  placeholderTextColor="#9ca3af"
-                  secureTextEntry
-                  editable={!loading}
-                  style={styles.input}
-                />
+                <View style={{ flexDirection: "row", alignItems: "center", position: "relative" }}>
+                  <TextInput
+                    value={newPassword}
+                    onChangeText={setNewPassword}
+                    placeholder="Enter new password"
+                    placeholderTextColor="#9ca3af"
+                    secureTextEntry={!showNewPassword}
+                    editable={!loading}
+                    style={[styles.input, { flex: 1, paddingRight: 48 }]}
+                  />
+                  <Pressable
+                    onPress={() => setShowNewPassword(!showNewPassword)}
+                    disabled={loading}
+                    style={({ pressed }) => ({
+                      position: "absolute",
+                      right: 12,
+                      padding: 8,
+                      opacity: pressed ? 0.6 : 1
+                    })}
+                  >
+                    <Ionicons
+                      name={showNewPassword ? "eye" : "eye-off"}
+                      size={20}
+                      color="#64748b"
+                    />
+                  </Pressable>
+                </View>
               </View>
               <Pressable
                 style={[styles.button, loading && styles.buttonDisabled]}
@@ -145,6 +198,6 @@ export default function ProfileScreen({ navigation }: any) {
           </View>
         </ScrollView>
       </KeyboardAvoidingView>
-    </SafeAreaView>
+    </View>
   );
 }

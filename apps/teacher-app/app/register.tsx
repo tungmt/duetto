@@ -1,7 +1,9 @@
 import { useNavigation } from "@react-navigation/native";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { useState } from "react";
-import { Alert, KeyboardAvoidingView, Platform, Pressable, SafeAreaView, ScrollView, Text, TextInput, View } from "react-native";
+import { Alert, KeyboardAvoidingView, Platform, Pressable, ScrollView, Text, TextInput, View } from "react-native";
+import { Ionicons } from "@expo/vector-icons";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { api } from "../src/api";
 import { styles } from "../src/styles";
 
@@ -9,10 +11,13 @@ type RegisterScreenNavigationProp = NativeStackNavigationProp<any, "Register">;
 
 export default function RegisterScreen() {
   const navigation = useNavigation<RegisterScreenNavigationProp>();
+  const insets = useSafeAreaInsets();
   const [email, setEmail] = useState("teacher@example.com");
   const [name, setName] = useState("Teacher");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [loading, setLoading] = useState(false);
 
   async function register() {
@@ -48,10 +53,20 @@ export default function RegisterScreen() {
   }
 
   return (
-    <SafeAreaView style={styles.safe}>
+    <View style={styles.safe}>
       <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : "height"} style={{ flex: 1 }}>
         <ScrollView contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
-          <View style={[styles.heroCard, { marginBottom: 16 }]}> 
+          <View
+            style={[
+              styles.heroCard,
+              {
+                marginBottom: 16,
+                paddingTop: insets.top + 16,
+                paddingHorizontal: 16,
+                paddingBottom: 16
+              }
+            ]}
+          >
             <View style={styles.heroTopRow}>
               <Text style={styles.heroTitle}>Create Account</Text>
             </View>
@@ -86,27 +101,63 @@ export default function RegisterScreen() {
             </View>
             <View>
               <Text style={[styles.title, { marginBottom: 8 }]}>Password</Text>
-              <TextInput
-                value={password}
-                onChangeText={setPassword}
-                placeholder="At least 6 characters"
-                placeholderTextColor="#9ca3af"
-                secureTextEntry
-                editable={!loading}
-                style={styles.input}
-              />
+              <View style={{ flexDirection: "row", alignItems: "center", position: "relative" }}>
+                <TextInput
+                  value={password}
+                  onChangeText={setPassword}
+                  placeholder="At least 6 characters"
+                  placeholderTextColor="#9ca3af"
+                  secureTextEntry={!showPassword}
+                  editable={!loading}
+                  style={[styles.input, { flex: 1, paddingRight: 48 }]}
+                />
+                <Pressable
+                  onPress={() => setShowPassword(!showPassword)}
+                  disabled={loading}
+                  style={({ pressed }) => ({
+                    position: "absolute",
+                    right: 12,
+                    padding: 8,
+                    opacity: pressed ? 0.6 : 1
+                  })}
+                >
+                  <Ionicons
+                    name={showPassword ? "eye" : "eye-off"}
+                    size={20}
+                    color="#64748b"
+                  />
+                </Pressable>
+              </View>
             </View>
             <View>
               <Text style={[styles.title, { marginBottom: 8 }]}>Confirm Password</Text>
-              <TextInput
-                value={confirmPassword}
-                onChangeText={setConfirmPassword}
-                placeholder="Re-enter password"
-                placeholderTextColor="#9ca3af"
-                secureTextEntry
-                editable={!loading}
-                style={styles.input}
-              />
+              <View style={{ flexDirection: "row", alignItems: "center", position: "relative" }}>
+                <TextInput
+                  value={confirmPassword}
+                  onChangeText={setConfirmPassword}
+                  placeholder="Re-enter password"
+                  placeholderTextColor="#9ca3af"
+                  secureTextEntry={!showConfirmPassword}
+                  editable={!loading}
+                  style={[styles.input, { flex: 1, paddingRight: 48 }]}
+                />
+                <Pressable
+                  onPress={() => setShowConfirmPassword(!showConfirmPassword)}
+                  disabled={loading}
+                  style={({ pressed }) => ({
+                    position: "absolute",
+                    right: 12,
+                    padding: 8,
+                    opacity: pressed ? 0.6 : 1
+                  })}
+                >
+                  <Ionicons
+                    name={showConfirmPassword ? "eye" : "eye-off"}
+                    size={20}
+                    color="#64748b"
+                  />
+                </Pressable>
+              </View>
             </View>
 
             <Pressable
@@ -125,6 +176,7 @@ export default function RegisterScreen() {
           </View>
         </ScrollView>
       </KeyboardAvoidingView>
-    </SafeAreaView>
+    </View>
   );
 }
+

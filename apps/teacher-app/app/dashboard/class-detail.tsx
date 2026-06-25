@@ -1,7 +1,8 @@
 import { RouteProp, useFocusEffect, useNavigation, useRoute } from "@react-navigation/native";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { useCallback, useState } from "react";
-import { Alert, FlatList, KeyboardAvoidingView, Platform, Pressable, SafeAreaView, ScrollView, Text, View } from "react-native";
+import { Alert, FlatList, KeyboardAvoidingView, Platform, Pressable, ScrollView, Text, View } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { api } from "../../src/api";
 import { styles } from "../../src/styles";
 
@@ -29,6 +30,7 @@ type ClassDetailResponse = {
 
 export default function ClassDetailScreen() {
   const navigation = useNavigation<ClassDetailNavigationProp>();
+  const insets = useSafeAreaInsets();
   const route = useRoute<ClassDetailRoute>();
   const { classId, className } = route.params;
 
@@ -54,11 +56,23 @@ export default function ClassDetailScreen() {
   );
 
   return (
-    <SafeAreaView style={styles.safe}>
+    <View style={styles.safe}>
       <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : "height"} style={{ flex: 1 }}>
         <ScrollView contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
           <View style={styles.container}>
-            <View style={[styles.heroCard, { marginBottom: 2 }]}>
+            <View
+              style={[
+                styles.heroCard,
+                {
+                  marginBottom: 2,
+                  marginHorizontal: -20,
+                  marginTop: -20,
+                  paddingTop: insets.top + 16,
+                  paddingHorizontal: 16,
+                  paddingBottom: 16
+                }
+              ]}
+            >
               <View style={styles.heroTopRow}>
                 <Pressable style={styles.backButton} onPress={() => navigation.goBack()}>
                   <Text style={styles.backButtonText}>← Back</Text>
@@ -119,6 +133,7 @@ export default function ClassDetailScreen() {
           </View>
         </ScrollView>
       </KeyboardAvoidingView>
-    </SafeAreaView>
+    </View>
   );
 }
+

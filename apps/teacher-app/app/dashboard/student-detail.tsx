@@ -1,8 +1,9 @@
 import { RouteProp, useRoute } from "@react-navigation/native";
 import { useNavigation } from "@react-navigation/native";
 import { useEffect, useState } from "react";
-import { Alert, FlatList, KeyboardAvoidingView, Platform, SafeAreaView, ScrollView, Text, View } from "react-native";
+import { Alert, FlatList, KeyboardAvoidingView, Platform, ScrollView, Text, View } from "react-native";
 import { Pressable } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { api } from "../../src/api";
 import { styles } from "../../src/styles";
 
@@ -39,6 +40,7 @@ type StudentDetailResponse = {
 
 export default function StudentDetailScreen() {
   const navigation = useNavigation<any>();
+  const insets = useSafeAreaInsets();
   const route = useRoute<StudentDetailRoute>();
   const { classId, studentId, studentName } = route.params;
 
@@ -62,11 +64,23 @@ export default function StudentDetailScreen() {
   }, [classId, studentId]);
 
   return (
-    <SafeAreaView style={styles.safe}>
+    <View style={styles.safe}>
       <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : "height"} style={{ flex: 1 }}>
         <ScrollView contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
           <View style={styles.container}>
-            <View style={[styles.heroCard, { marginBottom: 2 }]}>
+            <View
+              style={[
+                styles.heroCard,
+                {
+                  marginBottom: 2,
+                  marginHorizontal: -20,
+                  marginTop: -20,
+                  paddingTop: insets.top + 16,
+                  paddingHorizontal: 16,
+                  paddingBottom: 16
+                }
+              ]}
+            >
               <View style={styles.heroTopRow}>
                 <Pressable style={styles.backButton} onPress={() => navigation.goBack()}>
                   <Text style={styles.backButtonText}>← Back</Text>
@@ -122,6 +136,7 @@ export default function StudentDetailScreen() {
           </View>
         </ScrollView>
       </KeyboardAvoidingView>
-    </SafeAreaView>
+    </View>
   );
 }
+

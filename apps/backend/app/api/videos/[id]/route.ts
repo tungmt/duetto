@@ -5,12 +5,19 @@ import { getRequestUser, requireRole } from "@/lib/auth";
 import { handleError, json, options } from "@/lib/http";
 import { ensureRequestUser, requireTeacherProfile } from "@/lib/users";
 
+const answerPeriodSchema = z.object({
+  startMs: z.number().int().min(0),
+  endMs: z.number().int().min(1),
+  label: z.string().optional()
+});
+
 const updateChallengeSchema = z
   .object({
     title: z.string().min(1).optional(),
     description: z.string().optional(),
     classId: z.string().optional().nullable(),
-    status: z.enum(["DRAFT", "PUBLISHED", "ARCHIVED"]).optional()
+    status: z.enum(["DRAFT", "PUBLISHED", "ARCHIVED"]).optional(),
+    answerPeriods: z.array(answerPeriodSchema).optional()
   })
   .refine((input) => Object.keys(input).length > 0, {
     message: "At least one field is required"
@@ -24,7 +31,21 @@ export async function GET(request: NextRequest, context: { params: Promise<{ id:
     const challenge = await prisma.challenge.findUnique({
       where: { id },
       include: {
-        teacher: { select: { id: true, name: true } },
+        teacher: {
+          select: {
+            id: true,
+            name: true,
+            teacherProfile: {
+              select: {
+                displayName: true,
+                avatarUrl: true,
+                headline: true,
+                bio: true,
+                yearsExperience: true
+              }
+            }
+          }
+        },
         school: { select: { id: true, name: true } },
         class: { select: { id: true, name: true } },
         submissions: {
@@ -98,7 +119,8 @@ export async function PATCH(request: NextRequest, context: { params: Promise<{ i
         ...(input.title !== undefined ? { title: input.title } : {}),
         ...(input.description !== undefined ? { description: input.description } : {}),
         ...(input.status !== undefined ? { status: input.status } : {}),
-        ...(input.classId !== undefined ? { classId: input.classId } : {})
+        ...(input.classId !== undefined ? { classId: input.classId } : {}),
+        ...(input.answerPeriods !== undefined ? { answerPeriods: input.answerPeriods } : {})
       }
     });
 

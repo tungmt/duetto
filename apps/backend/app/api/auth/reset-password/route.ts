@@ -18,14 +18,24 @@ export async function POST(request: NextRequest) {
     if (user && user.accountStatus !== "DISABLED") {
       // Generate reset code
       const resetCode = String(Math.floor(100000 + Math.random() * 900000));
-      
-      // Store reset code (you might want to add resetCode field to User model for this)
-      // For now, we'll send the code via email
+      const resetExpiresAt = new Date(Date.now() + 15 * 60 * 1000);
+
+      // Store reset code in VerificationCode table
+      await prisma.verificationCode.create({
+        data: {
+          userId: user.id,
+          code: resetCode,
+          type: "PASSWORD_RESET",
+          expiresAt: resetExpiresAt
+        }
+      });
+
+      // Send reset code via email
       await sendPasswordResetEmail(user.email, resetCode);
     }
     
     // Always return success for security reasons (don't reveal if email exists)
-    return json({ ok: true, message: "If the email exists, a password reset link has been sent" });
+    return json({ ok: true, message: "If the email exists, a password reset code has been sent" });
   } catch (error) {
     return handleError(error);
   }

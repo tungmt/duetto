@@ -31,26 +31,46 @@ enum SubmissionStatus {
 }
 
 model User {
-  id                    String            @id @default(cuid())
-  email                 String            @unique
-  name                  String
-  passwordHash          String
-  role                  Role              @default(USER)
-  accountStatus         AccountStatus     @default(PENDING_EMAIL_VERIFICATION)
-  emailVerificationCode String?
-  emailVerifiedAt       DateTime?
-  deletedAt             DateTime?
-  createdAt             DateTime          @default(now())
-  updatedAt             DateTime          @updatedAt
-  teacherProfile        TeacherProfile?
-  studentProfile        StudentProfile?
-  teacherChallenges     Challenge[]       @relation("TeacherChallenges")
-  studentSubmissions    Submission[]      @relation("StudentSubmissions")
-  classesTeaching       Class[]           @relation("TeacherClasses")
-  classMemberships      ClassEnrollment[]
+  id                 String             @id @default(cuid())
+  email              String             @unique
+  name               String
+  passwordHash       String
+  roles              Json               @default("[\"USER\"]")
+  accountStatus      AccountStatus      @default(PENDING_EMAIL_VERIFICATION)
+  emailVerifiedAt    DateTime?
+  deletedAt          DateTime?
+  createdAt          DateTime           @default(now())
+  updatedAt          DateTime           @updatedAt
+  teacherProfile     TeacherProfile?
+  studentProfile     StudentProfile?
+  teacherChallenges  Challenge[]        @relation("TeacherChallenges")
+  studentSubmissions Submission[]       @relation("StudentSubmissions")
+  classesTeaching    Class[]            @relation("TeacherClasses")
+  classMemberships   ClassEnrollment[]
+  verificationCodes  VerificationCode[]
 
-  @@index([role])
   @@index([accountStatus])
+}
+
+model VerificationCode {
+  id        String               @id @default(cuid())
+  userId    String
+  code      String
+  type      VerificationCodeType
+  expiresAt DateTime
+  isUsed    Boolean              @default(false)
+  usedAt    DateTime?
+  createdAt DateTime             @default(now())
+  updatedAt DateTime             @updatedAt
+  user      User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, type, isUsed, expiresAt])
+  @@index([userId, code, type])
+}
+
+enum VerificationCodeType {
+  EMAIL_VERIFICATION
+  PASSWORD_RESET
 }
 
 model School {
@@ -109,6 +129,7 @@ model Challenge {
   classId        String?
   sourceVideoUrl String
   textOverlays   Json            @default("[]")
+  answerPeriods  Json            @default("[]")
   status         ChallengeStatus @default(DRAFT)
   createdAt      DateTime        @default(now())
   updatedAt      DateTime        @updatedAt
@@ -128,6 +149,7 @@ model Submission {
   challengeId      String
   studentId        String
   answerMediaUrl   String
+  answerSegments   Json            @default("[]")
   renderedVideoUrl String?
   status           SubmissionStatus @default(SUBMITTED)
   score            Int?

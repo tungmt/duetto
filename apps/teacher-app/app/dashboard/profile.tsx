@@ -1,7 +1,8 @@
 import { useNavigation, useFocusEffect } from "@react-navigation/native";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { useCallback, useMemo, useState } from "react";
-import { ActivityIndicator, Alert, Pressable, SafeAreaView, ScrollView, StyleSheet, Text, View } from "react-native";
+import { ActivityIndicator, Alert, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { api } from "../../src/api";
 import nav from "../../src/navigation";
 import { clearSession } from "../../src/session";
@@ -224,6 +225,7 @@ export default function ProfileScreen() {
   const navigation = useNavigation<ProfileScreenNavigationProp>();
   const [profile, setProfile] = useState<{ displayName?: string; headline?: string } | null>(null);
   const [loadingProfile, setLoadingProfile] = useState(true);
+  const insets = useSafeAreaInsets();
 
   function resetToAuthStack() {
     nav.reset("AuthStack");
@@ -283,14 +285,20 @@ export default function ProfileScreen() {
   }
 
   return (
-    <SafeAreaView style={localStyles.container}>
+    <View style={localStyles.container}>
       <ScrollView contentContainerStyle={localStyles.content} keyboardShouldPersistTaps="handled">
-        <View style={localStyles.header}>
-          <Text style={localStyles.headerTitle}>Profile</Text>
-          <Text style={localStyles.headerSubtitle}>Manage your account and security settings</Text>
-        </View>
-
-        <View style={localStyles.heroCard}>
+        <View
+          style={[
+            localStyles.heroCard,
+            {
+              marginHorizontal: -16,
+              marginTop: -14,
+              paddingTop: insets.top + 16,
+              paddingHorizontal: 16,
+              paddingBottom: 16
+            }
+          ]}
+        >
           <View style={localStyles.heroTop}>
             <View style={localStyles.avatarCircle}>
               <Text style={localStyles.avatarInitials}>{initials}</Text>
@@ -388,6 +396,7 @@ export default function ProfileScreen() {
           </View>
         </View>
       </ScrollView>
-    </SafeAreaView>
+    </View>
   );
 }
+

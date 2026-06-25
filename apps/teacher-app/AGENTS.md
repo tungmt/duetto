@@ -42,6 +42,11 @@ Use apps/teacher-app/app/dashboard/challenge-detail.tsx as the visual source of 
 	- Page content should use outer padding around `16` and vertical rhythm in the `12-16` range.
 - Header pattern (custom in-page header, not default navigator header):
 	- First surface is a dark hero card (`#0f2742`) with radius near `20`, padding near `18`, and soft elevation/shadow.
+	- Use valid hex color `#0f2742` for hero headers (do not use `#0f274`, which is invalid).
+	- Header must be full width across the screen (edge-to-edge relative to page shell).
+	- Header top padding must be `insets.top + 16`.
+	- Header horizontal padding must be `16`.
+	- Keep existing corner radius consistent with the current hero style.
 	- Back button belongs inside the hero top row, aligned horizontally with the page title.
 	- Back button styling should be pill shape (`borderRadius: 999`) with light blue translucent background and border.
 	- Keep title in the same row as back button and keep subtitle/eyebrow below.

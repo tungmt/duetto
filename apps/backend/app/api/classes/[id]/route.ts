@@ -29,7 +29,7 @@ async function assertClassAccess(request: NextRequest, classId: string, userId: 
     return;
   }
 
-  requireRole({ id: userId, role: role as "ADMIN" | "MODERATOR" | "USER" }, ["ADMIN", "MODERATOR"]);
+  requireRole({ id: userId, role: role as "ADMIN" | "MODERATOR" | "USER", roles: [role as "ADMIN" | "MODERATOR" | "USER"] }, ["ADMIN", "MODERATOR"]);
 }
 
 export async function GET(request: NextRequest, context: { params: Promise<{ id: string }> }) {

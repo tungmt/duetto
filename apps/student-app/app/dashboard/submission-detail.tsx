@@ -2,7 +2,8 @@ import { Audio, AVPlaybackStatusSuccess, ResizeMode, Video } from "expo-av";
 import { useFocusEffect, useNavigation, useRoute } from "@react-navigation/native";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { useCallback, useRef, useState } from "react";
-import { Alert, KeyboardAvoidingView, Platform, Pressable, SafeAreaView, ScrollView, Text, View } from "react-native";
+import { Alert, KeyboardAvoidingView, Platform, Pressable, ScrollView, Text, View } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { api } from "../../src/api";
 import nav from "../../src/navigation";
 import { styles } from "../../src/styles";
@@ -28,6 +29,7 @@ type SubmissionDetail = {
 
 export default function SubmissionDetailScreen() {
   const navigation = useNavigation<SubmissionDetailNavigationProp>();
+  const insets = useSafeAreaInsets();
   const route = useRoute();
   const submissionId = ((route as SubmissionDetailRoute).params?.submissionId ?? "").trim();
 
@@ -276,32 +278,43 @@ export default function SubmissionDetailScreen() {
 
   if (loading) {
     return (
-      <SafeAreaView style={styles.safe}>
+      <View style={styles.safe}>
         <View style={[styles.container, styles.emptyContainer]}>
           <Text style={styles.status}>Loading submission...</Text>
         </View>
-      </SafeAreaView>
+      </View>
     );
   }
 
   if (!submission) {
     return (
-      <SafeAreaView style={styles.safe}>
+      <View style={styles.safe}>
         <View style={[styles.container, styles.emptyContainer]}>
           <Text style={styles.status}>Submission not found.</Text>
         </View>
-      </SafeAreaView>
+      </View>
     );
   }
 
   const isReviewed = submission.status === "REVIEWED";
 
   return (
-    <SafeAreaView style={styles.safe}>
+    <View style={styles.safe}>
       <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : "height"} style={{ flex: 1 }}>
         <ScrollView contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
           <View style={styles.container}>
-            <View style={styles.heroCard}>
+            <View
+              style={[
+                styles.heroCard,
+                {
+                  marginHorizontal: -20,
+                  marginTop: -20,
+                  paddingTop: insets.top + 16,
+                  paddingHorizontal: 16,
+                  paddingBottom: 16
+                }
+              ]}
+            >
               <View style={styles.heroTopRow}>
                 <Pressable style={styles.backButton} onPress={() => navigation.goBack()}>
                   <Text style={styles.backButtonText}>← Back</Text>
@@ -404,6 +417,7 @@ export default function SubmissionDetailScreen() {
           </View>
         </ScrollView>
       </KeyboardAvoidingView>
-    </SafeAreaView>
+    </View>
   );
 }
+

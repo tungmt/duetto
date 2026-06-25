@@ -58,7 +58,19 @@ export async function GET(request: NextRequest) {
       take: limit + 1,
       orderBy: { createdAt: "desc" },
       include: {
-        teacher: { select: { id: true, name: true } },
+        teacher: {
+          select: {
+            id: true,
+            name: true,
+            teacherProfile: {
+              select: {
+                displayName: true,
+                avatarUrl: true,
+                headline: true
+              }
+            }
+          }
+        },
         school: { select: { id: true, name: true } },
         class: { select: { id: true, name: true } },
         _count: { select: { submissions: true } }
