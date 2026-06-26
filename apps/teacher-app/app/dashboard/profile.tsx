@@ -2,6 +2,7 @@ import { useNavigation, useFocusEffect } from "@react-navigation/native";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { useCallback, useMemo, useState } from "react";
 import { ActivityIndicator, Alert, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { Ionicons } from "@expo/vector-icons";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { api } from "../../src/api";
 import nav from "../../src/navigation";
@@ -284,6 +285,14 @@ export default function ProfileScreen() {
     ]);
   }
 
+  function openPrivacyPolicy() {
+    Alert.alert("Privacy Policy", "Privacy Policy page will be available soon.");
+  }
+
+  function openSupport() {
+    Alert.alert("Support", "Support page will be available soon.");
+  }
+
   return (
     <View style={localStyles.container}>
       <ScrollView contentContainerStyle={localStyles.content} keyboardShouldPersistTaps="handled">
@@ -338,7 +347,7 @@ export default function ProfileScreen() {
             >
               <View style={localStyles.menuLeft}>
                 <View style={localStyles.menuIcon}>
-                  <Text style={localStyles.menuIconText}>PR</Text>
+                  <Ionicons name="person-outline" size={18} color="#334155" />
                 </View>
                 <View style={localStyles.menuTextWrap}>
                   <Text style={localStyles.menuItemDescription}>Personal information and public bio</Text>
@@ -359,7 +368,7 @@ export default function ProfileScreen() {
             >
               <View style={localStyles.menuLeft}>
                 <View style={localStyles.menuIcon}>
-                  <Text style={localStyles.menuIconText}>PW</Text>
+                  <Ionicons name="lock-closed-outline" size={18} color="#334155" />
                 </View>
                 <View style={localStyles.menuTextWrap}>
                   <Text style={localStyles.menuItemDescription}>Keep your account secure</Text>
@@ -372,11 +381,42 @@ export default function ProfileScreen() {
             <Pressable style={localStyles.menuItem} onPress={logout}>
               <View style={localStyles.menuLeft}>
                 <View style={localStyles.menuIcon}>
-                  <Text style={localStyles.menuIconText}>LO</Text>
+                  <Ionicons name="log-out-outline" size={18} color="#334155" />
                 </View>
                 <View style={localStyles.menuTextWrap}>
                   <Text style={localStyles.menuItemDescription}>End this session on this device</Text>
                   <Text style={localStyles.menuItemText}>Log Out</Text>
+                </View>
+              </View>
+              <Text style={localStyles.arrow}>{">"}</Text>
+            </Pressable>
+          </View>
+        </View>
+
+        <View style={localStyles.section}>
+          <Text style={localStyles.sectionTitle}>Resources</Text>
+          <View style={localStyles.listCard}>
+            <Pressable style={localStyles.menuItem} onPress={openPrivacyPolicy}>
+              <View style={localStyles.menuLeft}>
+                <View style={localStyles.menuIcon}>
+                  <Ionicons name="shield-checkmark-outline" size={18} color="#334155" />
+                </View>
+                <View style={localStyles.menuTextWrap}>
+                  <Text style={localStyles.menuItemDescription}>How we collect and protect your data</Text>
+                  <Text style={localStyles.menuItemText}>Privacy Policy</Text>
+                </View>
+              </View>
+              <Text style={localStyles.arrow}>{">"}</Text>
+            </Pressable>
+            <View style={localStyles.divider} />
+            <Pressable style={localStyles.menuItem} onPress={openSupport}>
+              <View style={localStyles.menuLeft}>
+                <View style={localStyles.menuIcon}>
+                  <Ionicons name="headset-outline" size={18} color="#334155" />
+                </View>
+                <View style={localStyles.menuTextWrap}>
+                  <Text style={localStyles.menuItemDescription}>Need help? Contact our support team</Text>
+                  <Text style={localStyles.menuItemText}>Support</Text>
                 </View>
               </View>
               <Text style={localStyles.arrow}>{">"}</Text>

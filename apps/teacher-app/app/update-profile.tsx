@@ -3,6 +3,7 @@ import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { useCallback, useState } from "react";
 import { Alert, Image, KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 import * as ImagePicker from "expo-image-picker";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { api } from "../src/api";
 
 type UpdateProfileScreenNavigationProp = NativeStackNavigationProp<any, "UpdateProfile">;
@@ -14,20 +15,65 @@ const localStyles = StyleSheet.create({
   },
   content: {
     padding: 16,
-    gap: 16
+    gap: 14,
+    paddingBottom: 36
   },
-  header: {
-    marginBottom: 8
+  heroCard: {
+    backgroundColor: "#0f2742",
+    borderRadius: 20,
+    padding: 18,
+    gap: 6,
+    shadowColor: "#0f172a",
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.16,
+    shadowRadius: 16,
+    elevation: 6
   },
-  headerTitle: {
-    fontSize: 28,
-    fontWeight: "800",
-    color: "#0f172a",
+  heroTopRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
     marginBottom: 4
   },
-  headerSubtitle: {
+  backButton: {
+    backgroundColor: "rgba(147, 197, 253, 0.2)",
+    borderColor: "rgba(147, 197, 253, 0.5)",
+    borderWidth: 1,
+    borderRadius: 999,
+    paddingHorizontal: 12,
+    paddingVertical: 7
+  },
+  backButtonText: {
+    color: "#dbeafe",
+    fontSize: 13,
+    fontWeight: "700"
+  },
+  heroEyebrow: {
+    color: "#93c5fd",
+    fontSize: 12,
+    fontWeight: "700",
+    letterSpacing: 0.4,
+    textTransform: "uppercase"
+  },
+  heroTitle: {
+    flex: 1,
+    color: "#f8fafc",
+    fontSize: 28,
+    fontWeight: "800",
+  },
+  heroSubtitle: {
+    color: "#cbd5e1",
     fontSize: 14,
-    color: "#64748b"
+    fontWeight: "500",
+    lineHeight: 20
+  },
+  panelCard: {
+    backgroundColor: "#ffffff",
+    borderRadius: 16,
+    padding: 14,
+    gap: 12,
+    borderWidth: 1,
+    borderColor: "#dbe4ef"
   },
   avatarSection: {
     alignItems: "center",
@@ -35,9 +81,9 @@ const localStyles = StyleSheet.create({
     marginBottom: 8
   },
   avatarContainer: {
-    width: 120,
-    height: 120,
-    borderRadius: 60,
+    width: 116,
+    height: 116,
+    borderRadius: 58,
     backgroundColor: "#dbe4ef",
     justifyContent: "center",
     alignItems: "center",
@@ -47,22 +93,24 @@ const localStyles = StyleSheet.create({
   avatar: {
     width: "100%",
     height: "100%",
-    borderRadius: 60
+    borderRadius: 58
   },
   avatarPlaceholder: {
     fontSize: 40,
     color: "#999"
   },
   changeAvatarButton: {
-    backgroundColor: "#0369a1",
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 20
+    backgroundColor: "#e2e8f0",
+    borderRadius: 12,
+    minHeight: 44,
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: 14
   },
   changeAvatarButtonText: {
-    color: "#fff",
-    fontSize: 13,
-    fontWeight: "600"
+    color: "#0f172a",
+    fontSize: 14,
+    fontWeight: "700"
   },
   formSection: {
     gap: 16
@@ -92,8 +140,9 @@ const localStyles = StyleSheet.create({
   button: {
     backgroundColor: "#0369a1",
     borderRadius: 12,
-    paddingVertical: 12,
+    minHeight: 52,
     alignItems: "center",
+    justifyContent: "center",
     marginTop: 8
   },
   buttonText: {
@@ -102,13 +151,14 @@ const localStyles = StyleSheet.create({
     fontWeight: "600"
   },
   buttonDisabled: {
-    backgroundColor: "#ccc"
+    opacity: 0.6
   },
   cancelButton: {
     backgroundColor: "#e2e8f0",
     borderRadius: 12,
-    paddingVertical: 12,
+    minHeight: 50,
     alignItems: "center",
+    justifyContent: "center",
     borderWidth: 1,
     borderColor: "#dbe4ef",
     marginTop: 8
@@ -122,6 +172,7 @@ const localStyles = StyleSheet.create({
 
 export default function UpdateProfileScreen() {
   const navigation = useNavigation<UpdateProfileScreenNavigationProp>();
+  const insets = useSafeAreaInsets();
   const [avatar, setAvatar] = useState<string | null>(null);
   const [displayName, setDisplayName] = useState("");
   const [headline, setHeadline] = useState("");
@@ -216,77 +267,96 @@ export default function UpdateProfileScreen() {
     <View style={localStyles.container}>
       <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : "height"} style={{ flex: 1 }}>
         <ScrollView contentContainerStyle={localStyles.content} keyboardShouldPersistTaps="handled">
-          <View style={localStyles.header}>
-            <Text style={localStyles.headerTitle}>Edit Profile</Text>
-            <Text style={localStyles.headerSubtitle}>Update your account information</Text>
+          <View
+            style={[
+              localStyles.heroCard,
+              {
+                marginHorizontal: -16,
+                marginTop: -16,
+                paddingTop: insets.top + 16,
+                paddingHorizontal: 16,
+                paddingBottom: 16
+              }
+            ]}
+          >
+            <View style={localStyles.heroTopRow}>
+              <Pressable style={localStyles.backButton} onPress={() => navigation.goBack()} disabled={loading}>
+                <Text style={localStyles.backButtonText}>{"< Back"}</Text>
+              </Pressable>
+              <Text style={localStyles.heroTitle}>Edit Profile</Text>
+            </View>
+            <Text style={localStyles.heroEyebrow}>Account Settings</Text>
+            <Text style={localStyles.heroSubtitle}>Update your public profile and teacher details.</Text>
           </View>
 
-          <View style={localStyles.avatarSection}>
-            <View style={localStyles.avatarContainer}>
-              {avatar ? (
-                <Image source={{ uri: avatar }} style={localStyles.avatar} />
-              ) : (
-                <Text style={localStyles.avatarPlaceholder}>👤</Text>
-              )}
-            </View>
-            <Pressable style={localStyles.changeAvatarButton} onPress={pickAvatar} disabled={loading}>
-              <Text style={localStyles.changeAvatarButtonText}>Change Avatar</Text>
-            </Pressable>
-          </View>
-
-          <View style={localStyles.formSection}>
-            <View style={localStyles.inputGroup}>
-              <Text style={localStyles.label}>Full Name</Text>
-              <TextInput
-                value={displayName}
-                onChangeText={setDisplayName}
-                placeholder="Enter your full name"
-                placeholderTextColor="#9ca3af"
-                editable={!loading}
-                style={localStyles.input}
-              />
+          <View style={localStyles.panelCard}>
+            <View style={localStyles.avatarSection}>
+              <View style={localStyles.avatarContainer}>
+                {avatar ? (
+                  <Image source={{ uri: avatar }} style={localStyles.avatar} />
+                ) : (
+                  <Text style={localStyles.avatarPlaceholder}>👤</Text>
+                )}
+              </View>
+              <Pressable style={localStyles.changeAvatarButton} onPress={pickAvatar} disabled={loading}>
+                <Text style={localStyles.changeAvatarButtonText}>Change Avatar</Text>
+              </Pressable>
             </View>
 
-            <View style={localStyles.inputGroup}>
-              <Text style={localStyles.label}>Headline</Text>
-              <TextInput
-                value={headline}
-                onChangeText={setHeadline}
-                placeholder="e.g., Music Teacher, Piano Specialist"
-                placeholderTextColor="#9ca3af"
-                editable={!loading}
-                style={localStyles.input}
-              />
+            <View style={localStyles.formSection}>
+              <View style={localStyles.inputGroup}>
+                <Text style={localStyles.label}>Full Name</Text>
+                <TextInput
+                  value={displayName}
+                  onChangeText={setDisplayName}
+                  placeholder="Enter your full name"
+                  placeholderTextColor="#9ca3af"
+                  editable={!loading}
+                  style={localStyles.input}
+                />
+              </View>
+
+              <View style={localStyles.inputGroup}>
+                <Text style={localStyles.label}>Headline</Text>
+                <TextInput
+                  value={headline}
+                  onChangeText={setHeadline}
+                  placeholder="e.g., Music Teacher, Piano Specialist"
+                  placeholderTextColor="#9ca3af"
+                  editable={!loading}
+                  style={localStyles.input}
+                />
+              </View>
+
+              <View style={localStyles.inputGroup}>
+                <Text style={localStyles.label}>Bio</Text>
+                <TextInput
+                  value={bio}
+                  onChangeText={setBio}
+                  placeholder="Tell students about yourself, your experience, and teaching style..."
+                  placeholderTextColor="#9ca3af"
+                  multiline
+                  editable={!loading}
+                  style={[localStyles.input, localStyles.textArea]}
+                />
+              </View>
+
+              <Pressable
+                style={[localStyles.button, loading && localStyles.buttonDisabled]}
+                onPress={save}
+                disabled={loading}
+              >
+                <Text style={localStyles.buttonText}>{loading ? "Saving..." : "Save Profile"}</Text>
+              </Pressable>
+
+              <Pressable
+                style={localStyles.cancelButton}
+                onPress={() => navigation.goBack()}
+                disabled={loading}
+              >
+                <Text style={localStyles.cancelButtonText}>Cancel</Text>
+              </Pressable>
             </View>
-
-            <View style={localStyles.inputGroup}>
-              <Text style={localStyles.label}>Bio</Text>
-              <TextInput
-                value={bio}
-                onChangeText={setBio}
-                placeholder="Tell students about yourself, your experience, and teaching style..."
-                placeholderTextColor="#9ca3af"
-                multiline
-                editable={!loading}
-                style={[localStyles.input, localStyles.textArea]}
-              />
-            </View>
-
-            <Pressable
-              style={[localStyles.button, loading && localStyles.buttonDisabled]}
-              onPress={save}
-              disabled={loading}
-            >
-              <Text style={localStyles.buttonText}>{loading ? "Saving..." : "Save Profile"}</Text>
-            </Pressable>
-
-            <Pressable
-              style={localStyles.cancelButton}
-              onPress={() => navigation.goBack()}
-              disabled={loading}
-            >
-              <Text style={localStyles.cancelButtonText}>Cancel</Text>
-            </Pressable>
           </View>
         </ScrollView>
       </KeyboardAvoidingView>

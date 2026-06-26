@@ -1,14 +1,56 @@
 import { useNavigation } from "@react-navigation/native";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { useEffect, useState } from "react";
-import { FlatList, KeyboardAvoidingView, Platform, Pressable, ScrollView, Text, View } from "react-native";
+import { FlatList, Image, KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { api } from "../../src/api";
 import { styles } from "../../src/styles";
 
 type ChallengesScreenNavigationProp = NativeStackNavigationProp<any, "ChallengesTab">;
 
-type Challenge = { id: string; title: string; status: string; _count?: { submissions: number } };
+type Challenge = {
+  id: string;
+  title: string;
+  status: string;
+  createdAt?: string;
+  previewVideoUrl?: string | null;
+  thumbnailUrl?: string | null;
+  _count?: { submissions: number };
+};
+
+function formatTimeAgo(dateText?: string) {
+  if (!dateText) {
+    return "Uploaded recently";
+  }
+
+  const created = new Date(dateText);
+  const createdMs = created.getTime();
+  if (Number.isNaN(createdMs)) {
+    return "Uploaded recently";
+  }
+
+  const diffMs = Math.max(Date.now() - createdMs, 0);
+  const minuteMs = 60 * 1000;
+  const hourMs = 60 * minuteMs;
+  const dayMs = 24 * hourMs;
+
+  if (diffMs < minuteMs) {
+    return "Uploaded just now";
+  }
+
+  if (diffMs < hourMs) {
+    const minutes = Math.floor(diffMs / minuteMs);
+    return `Uploaded ${minutes}m ago`;
+  }
+
+  if (diffMs < dayMs) {
+    const hours = Math.floor(diffMs / hourMs);
+    return `Uploaded ${hours}h ago`;
+  }
+
+  const days = Math.floor(diffMs / dayMs);
+  return `Uploaded ${days}d ago`;
+}
 
 export default function TeacherChallengesScreen() {
   const navigation = useNavigation<ChallengesScreenNavigationProp>();
@@ -79,14 +121,28 @@ export default function TeacherChallengesScreen() {
                   data={challenges}
                   keyExtractor={(item) => item.id}
                   renderItem={({ item }) => (
-                      <Pressable
-                        style={styles.row}
-                        onPress={() => navigation.navigate("ChallengeDetail", { challengeId: item.id })}
-                      >
-                      <Text style={styles.title}>{item.title}</Text>
-                      <Text style={styles.status}>{item.status} • {item._count?.submissions ?? 0} submissions</Text>
-                        <Text style={styles.link}>Open details →</Text>
-                      </Pressable>
+                    <Pressable
+                      style={styles.row}
+                      onPress={() => navigation.navigate("ChallengeDetail", { challengeId: item.id })}
+                    >
+                      <View style={localStyles.rowContent}>
+                        <View style={localStyles.previewWrap}>
+                          {item.thumbnailUrl ? (
+                            <Image source={{ uri: item.thumbnailUrl }} style={localStyles.previewImage} resizeMode="cover" />
+                          ) : (
+                            <View style={localStyles.previewFallback}>
+                              <Text style={localStyles.previewFallbackText}>No preview</Text>
+                            </View>
+                          )}
+                        </View>
+
+                        <View style={localStyles.infoWrap}>
+                          <Text style={styles.title} numberOfLines={2}>{item.title}</Text>
+                          <Text style={styles.status}>{item.status} • {item._count?.submissions ?? 0} submissions</Text>
+                          <Text style={styles.hint}>{formatTimeAgo(item.createdAt)}</Text>
+                        </View>
+                      </View>
+                    </Pressable>
                   )}
                 />
               </View>
@@ -97,4 +153,39 @@ export default function TeacherChallengesScreen() {
     </View>
   );
 }
+
+const localStyles = StyleSheet.create({
+  rowContent: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: 12
+  },
+  previewWrap: {
+    borderRadius: 12,
+    overflow: "hidden",
+    borderWidth: 1,
+    borderColor: "#dbe4ef",
+    backgroundColor: "#0b1220",
+    width: 88,
+    aspectRatio: 9 / 16
+  },
+  previewImage: {
+    width: "100%",
+    height: "100%"
+  },
+  infoWrap: {
+    flex: 1,
+    gap: 2
+  },
+  previewFallback: {
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "center"
+  },
+  previewFallbackText: {
+    color: "#cbd5e1",
+    fontSize: 12,
+    fontWeight: "700"
+  }
+});
 
