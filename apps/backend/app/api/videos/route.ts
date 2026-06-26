@@ -6,6 +6,48 @@ import { getRequestUser, requireRole } from "@/lib/auth";
 import { handleError, json, options } from "@/lib/http";
 import { ensureRequestUser, requireTeacherProfile } from "@/lib/users";
 
+const answerPeriodSchema = z
+  .object({
+    startMs: z.number().int().min(0),
+    endMs: z.number().int().min(1),
+    label: z.string().optional()
+  })
+  .refine((period) => period.endMs > period.startMs, {
+    message: "endMs must be greater than startMs"
+  });
+
+const answerPeriodInputSchema = z.preprocess((value) => {
+  if (typeof value !== "object" || value === null) {
+    return value;
+  }
+
+  const period = value as {
+    startMs?: unknown;
+    endMs?: unknown;
+    startSeconds?: unknown;
+    endSeconds?: unknown;
+    label?: unknown;
+  };
+
+  if (typeof period.startMs === "number" && typeof period.endMs === "number") {
+    return {
+      startMs: Math.floor(period.startMs),
+      endMs: Math.ceil(period.endMs),
+      label: typeof period.label === "string" ? period.label : undefined
+    };
+  }
+
+  if (typeof period.startSeconds === "number" && typeof period.endSeconds === "number") {
+    return {
+      startMs: Math.floor(period.startSeconds * 1000),
+      endMs: Math.ceil(period.endSeconds * 1000),
+      label: typeof period.label === "string" ? period.label : undefined
+    };
+  }
+
+  return value;
+}, answerPeriodSchema);
+
 const createChallengeSchema = z.object({
   title: z.string().min(1),
   description: z.string().optional(),
@@ -21,6 +63,7 @@ const createChallengeSchema = z.object({
       endMs: z.number().int().min(0)
     })
     .optional(),
+  answerPeriods: z.array(answerPeriodInputSchema).default([]),
   status: z.enum(["DRAFT", "PUBLISHED", "ARCHIVED"]).default("DRAFT")
 });
 
@@ -133,6 +176,7 @@ export async function POST(request: NextRequest) {
             thumbnailUrl: input.thumbnailUrl ?? null
           }
         } as Prisma.InputJsonValue,
+        answerPeriods: input.answerPeriods as Prisma.InputJsonValue,
         teacherId: user.id
       }
     });

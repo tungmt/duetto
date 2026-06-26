@@ -5,11 +5,47 @@ import { getRequestUser, requireRole } from "@/lib/auth";
 import { handleError, json, options } from "@/lib/http";
 import { ensureRequestUser, requireTeacherProfile } from "@/lib/users";
 
-const answerPeriodSchema = z.object({
-  startMs: z.number().int().min(0),
-  endMs: z.number().int().min(1),
-  label: z.string().optional()
-});
+const answerPeriodSchema = z
+  .object({
+    startMs: z.number().int().min(0),
+    endMs: z.number().int().min(1),
+    label: z.string().optional()
+  })
+  .refine((period) => period.endMs > period.startMs, {
+    message: "endMs must be greater than startMs"
+  });
+
+const answerPeriodInputSchema = z.preprocess((value) => {
+  if (typeof value !== "object" || value === null) {
+    return value;
+  }
+
+  const period = value as {
+    startMs?: unknown;
+    endMs?: unknown;
+    startSeconds?: unknown;
+    endSeconds?: unknown;
+    label?: unknown;
+  };
+
+  if (typeof period.startMs === "number" && typeof period.endMs === "number") {
+    return {
+      startMs: Math.floor(period.startMs),
+      endMs: Math.ceil(period.endMs),
+      label: typeof period.label === "string" ? period.label : undefined
+    };
+  }
+
+  if (typeof period.startSeconds === "number" && typeof period.endSeconds === "number") {
+    return {
+      startMs: Math.floor(period.startSeconds * 1000),
+      endMs: Math.ceil(period.endSeconds * 1000),
+      label: typeof period.label === "string" ? period.label : undefined
+    };
+  }
+
+  return value;
+}, answerPeriodSchema);
 
 const updateChallengeSchema = z
   .object({
@@ -17,7 +53,7 @@ const updateChallengeSchema = z
     description: z.string().optional(),
     classId: z.string().optional().nullable(),
     status: z.enum(["DRAFT", "PUBLISHED", "ARCHIVED"]).optional(),
-    answerPeriods: z.array(answerPeriodSchema).optional()
+    answerPeriods: z.array(answerPeriodInputSchema).optional()
   })
   .refine((input) => Object.keys(input).length > 0, {
     message: "At least one field is required"

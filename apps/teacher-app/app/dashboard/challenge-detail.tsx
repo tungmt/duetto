@@ -1,8 +1,8 @@
-import { ResizeMode, Video, AVPlaybackStatusSuccess } from "expo-av";
+import { AVPlaybackStatus, ResizeMode, Video } from "expo-av";
 import { useFocusEffect, useNavigation, useRoute } from "@react-navigation/native";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { useCallback, useMemo, useRef, useState } from "react";
-import { Alert, KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
+import { Alert, KeyboardAvoidingView, LayoutChangeEvent, PanResponder, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { api } from "../../src/api";
 
@@ -19,6 +19,8 @@ type Submission = {
   createdAt: string;
 };
 
+type AnswerPeriod = { startMs: number; endMs: number; label?: string };
+
 type Challenge = {
   id: string;
   title: string;
@@ -29,7 +31,7 @@ type Challenge = {
   submissions: Submission[];
 };
 
-type AnswerPeriod = { startMs: number; endMs: number; label?: string };
+const MIN_PERIOD_MS = 500;
 
 function getStatusChipColors(status: Challenge["status"]) {
   if (status === "PUBLISHED") {
@@ -54,18 +56,28 @@ export default function ChallengeDetailScreen() {
   const [saving, setSaving] = useState(false);
   const [activeTab, setActiveTab] = useState<DetailTab>("general");
 
-  // Answer period editor state
   const videoRef = useRef<Video | null>(null);
   const [videoPositionMs, setVideoPositionMs] = useState(0);
+  const [videoDurationMs, setVideoDurationMs] = useState(0);
+  const [isVideoPlaying, setIsVideoPlaying] = useState(false);
+
   const [periods, setPeriods] = useState<AnswerPeriod[]>([]);
   const [pendingStartMs, setPendingStartMs] = useState<number | null>(null);
   const [savingPeriods, setSavingPeriods] = useState(false);
+  const [selectedPeriodIndex, setSelectedPeriodIndex] = useState<number | null>(null);
+  const [timelineWidth, setTimelineWidth] = useState(0);
+
+  const leftDragStartMsRef = useRef(0);
+  const rightDragStartMsRef = useRef(0);
 
   const sortedSubmissions = useMemo(() => {
     return [...(challenge?.submissions ?? [])].sort((a, b) => {
       return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
     });
   }, [challenge?.submissions]);
+
+  const selectedPeriod = selectedPeriodIndex !== null ? periods[selectedPeriodIndex] : null;
+  const hasDuration = videoDurationMs > 0;
 
   const loadChallenge = useCallback(async () => {
     if (!challengeId) {
@@ -77,10 +89,13 @@ export default function ChallengeDetailScreen() {
     try {
       const data = await api(`/api/videos/${challengeId}`);
       const nextChallenge = data.challenge as Challenge;
+      const incomingPeriods = Array.isArray(nextChallenge.answerPeriods) ? nextChallenge.answerPeriods : [];
       setChallenge(nextChallenge);
       setTitle(nextChallenge.title ?? "");
       setDescription(nextChallenge.description ?? "");
-      setPeriods(Array.isArray(nextChallenge.answerPeriods) ? nextChallenge.answerPeriods : []);
+      setPeriods(incomingPeriods);
+      setPendingStartMs(null);
+      setSelectedPeriodIndex(incomingPeriods.length > 0 ? 0 : null);
     } catch (error) {
       Alert.alert("Error", error instanceof Error ? error.message : "Could not load challenge");
     } finally {
@@ -142,33 +157,164 @@ export default function ChallengeDetailScreen() {
   }
 
   function formatMs(ms: number) {
-    const totalSecs = Math.floor(ms / 1000);
+    const totalSecs = Math.floor(Math.max(ms, 0) / 1000);
     const m = Math.floor(totalSecs / 60);
     const s = totalSecs % 60;
     return `${m}:${String(s).padStart(2, "0")}`;
   }
 
-  function markStart() {
-    setPendingStartMs(videoPositionMs);
-  }
-
-  function markEnd() {
-    if (pendingStartMs === null) return;
-    if (videoPositionMs <= pendingStartMs) {
-      Alert.alert("Invalid range", "End time must be after start time.");
+  function onVideoStatusUpdate(status: AVPlaybackStatus) {
+    if (!status.isLoaded) {
       return;
     }
-    const newPeriod: AnswerPeriod = { startMs: pendingStartMs, endMs: videoPositionMs };
-    setPeriods((prev) => [...prev, newPeriod].sort((a, b) => a.startMs - b.startMs));
+    setVideoPositionMs(status.positionMillis ?? 0);
+    setVideoDurationMs(status.durationMillis ?? 0);
+    setIsVideoPlaying(status.isPlaying ?? false);
+  }
+
+  async function seekTo(targetMs: number) {
+    if (!videoRef.current || !hasDuration) {
+      return;
+    }
+    const next = Math.max(0, Math.min(targetMs, videoDurationMs));
+    await videoRef.current.setPositionAsync(next);
+  }
+
+  async function seekBy(deltaMs: number) {
+    await seekTo(videoPositionMs + deltaMs);
+  }
+
+  async function togglePlayback() {
+    if (!videoRef.current) {
+      return;
+    }
+
+    if (isVideoPlaying) {
+      await videoRef.current.pauseAsync();
+    } else {
+      await videoRef.current.playAsync();
+    }
+  }
+
+  async function onTimelinePress(event: any) {
+    if (!hasDuration || timelineWidth <= 0) {
+      return;
+    }
+
+    const x = event.nativeEvent?.locationX ?? 0;
+    const ratio = Math.max(0, Math.min(x / timelineWidth, 1));
+    await seekTo(ratio * videoDurationMs);
+  }
+
+  function onTimelineLayout(event: LayoutChangeEvent) {
+    setTimelineWidth(event.nativeEvent.layout.width);
+  }
+
+  function updatePeriodEdge(index: number, edge: "start" | "end", nextMs: number) {
+    if (!hasDuration) {
+      return;
+    }
+
+    setPeriods((prev) => {
+      const current = prev[index];
+      if (!current) {
+        return prev;
+      }
+
+      const maxDuration = Math.max(videoDurationMs, 0);
+      let start = current.startMs;
+      let end = current.endMs;
+
+      if (edge === "start") {
+        start = Math.max(0, Math.min(nextMs, end - MIN_PERIOD_MS));
+      } else {
+        end = Math.min(maxDuration, Math.max(nextMs, start + MIN_PERIOD_MS));
+      }
+
+      const next = [...prev];
+      next[index] = { ...current, startMs: start, endMs: end };
+      return next;
+    });
+  }
+
+  const leftHandleResponder = PanResponder.create({
+    onStartShouldSetPanResponder: () => selectedPeriodIndex !== null,
+    onMoveShouldSetPanResponder: () => selectedPeriodIndex !== null,
+    onPanResponderGrant: () => {
+      if (selectedPeriodIndex === null) {
+        return;
+      }
+      leftDragStartMsRef.current = periods[selectedPeriodIndex]?.startMs ?? 0;
+    },
+    onPanResponderMove: (_, gestureState) => {
+      if (selectedPeriodIndex === null || timelineWidth <= 0 || !hasDuration) {
+        return;
+      }
+      const deltaMs = (gestureState.dx / timelineWidth) * videoDurationMs;
+      updatePeriodEdge(selectedPeriodIndex, "start", leftDragStartMsRef.current + deltaMs);
+    }
+  });
+
+  const rightHandleResponder = PanResponder.create({
+    onStartShouldSetPanResponder: () => selectedPeriodIndex !== null,
+    onMoveShouldSetPanResponder: () => selectedPeriodIndex !== null,
+    onPanResponderGrant: () => {
+      if (selectedPeriodIndex === null) {
+        return;
+      }
+      rightDragStartMsRef.current = periods[selectedPeriodIndex]?.endMs ?? 0;
+    },
+    onPanResponderMove: (_, gestureState) => {
+      if (selectedPeriodIndex === null || timelineWidth <= 0 || !hasDuration) {
+        return;
+      }
+      const deltaMs = (gestureState.dx / timelineWidth) * videoDurationMs;
+      updatePeriodEdge(selectedPeriodIndex, "end", rightDragStartMsRef.current + deltaMs);
+    }
+  });
+
+  function handleAnswerPeriodButton() {
+    if (pendingStartMs === null) {
+      setPendingStartMs(videoPositionMs);
+      return;
+    }
+
+    if (videoPositionMs <= pendingStartMs) {
+      Alert.alert("Invalid range", "Stop time must be after start time.");
+      return;
+    }
+
+    const newPeriod: AnswerPeriod = {
+      startMs: pendingStartMs,
+      endMs: videoPositionMs
+    };
+
+    setPeriods((prev) => {
+      const next = [...prev, newPeriod].sort((a, b) => a.startMs - b.startMs);
+      setSelectedPeriodIndex(next.length - 1);
+      return next;
+    });
     setPendingStartMs(null);
   }
 
   function removePeriod(index: number) {
     setPeriods((prev) => prev.filter((_, i) => i !== index));
+    setSelectedPeriodIndex((prev) => {
+      if (prev === null) {
+        return null;
+      }
+      if (prev === index) {
+        return null;
+      }
+      return prev > index ? prev - 1 : prev;
+    });
   }
 
   async function saveAnswerPeriods() {
-    if (!challengeId) return;
+    if (!challengeId) {
+      return;
+    }
+
     setSavingPeriods(true);
     try {
       await api(`/api/videos/${challengeId}`, {
@@ -183,6 +329,14 @@ export default function ChallengeDetailScreen() {
       setSavingPeriods(false);
     }
   }
+
+  const progressPct = hasDuration ? Math.max(0, Math.min((videoPositionMs / videoDurationMs) * 100, 100)) : 0;
+  const selectedStartPx = selectedPeriod && hasDuration && timelineWidth > 0
+    ? Math.round((selectedPeriod.startMs / videoDurationMs) * timelineWidth)
+    : 0;
+  const selectedEndPx = selectedPeriod && hasDuration && timelineWidth > 0
+    ? Math.round((selectedPeriod.endMs / videoDurationMs) * timelineWidth)
+    : 0;
 
   return (
     <View style={localStyles.safe}>
@@ -208,13 +362,12 @@ export default function ChallengeDetailScreen() {
               <Text style={localStyles.heroTitle}>Manage Challenge</Text>
             </View>
             <Text style={localStyles.heroEyebrow}>Challenge Workspace</Text>
-            <Text style={localStyles.heroSubtitle}>Edit video details, control publish status, and review answers.</Text>
+            <Text style={localStyles.heroSubtitle}>Edit video details, answer periods, and submissions.</Text>
           </View>
 
           {loading ? (
             <View style={localStyles.centerState}>
               <Text style={localStyles.centerStateText}>Loading challenge...</Text>
-
             </View>
           ) : !challenge ? (
             <View style={localStyles.centerState}>
@@ -259,104 +412,38 @@ export default function ChallengeDetailScreen() {
 
                   <View style={localStyles.videoFrame}>
                     <Video
-                      source={{ uri: challenge.sourceVideoUrl }}
-                      style={localStyles.video}
-                      resizeMode={ResizeMode.CONTAIN}
-                      useNativeControls
-                    />
-                  </View>
-
-                  <View>
-                    <Text style={localStyles.label}>Title</Text>
-                    <TextInput
-                      value={title}
-                      onChangeText={setTitle}
-                      editable={!saving}
-                      placeholder="Challenge title"
-                      placeholderTextColor="#9ca3af"
-                      style={localStyles.input}
-                    />
-                  </View>
-
-                  <View>
-                    <Text style={localStyles.label}>Description</Text>
-                    <TextInput
-                      value={description}
-                      onChangeText={setDescription}
-                      editable={!saving}
-                      multiline
-                      numberOfLines={3}
-                      placeholder="Challenge description"
-                      placeholderTextColor="#9ca3af"
-                      style={[localStyles.input, localStyles.inputMultiline]}
-                    />
-                  </View>
-
-                  <Pressable style={[localStyles.primaryButton, saving && localStyles.buttonDisabled]} onPress={saveInfo} disabled={saving}>
-                    <Text style={localStyles.primaryButtonText}>{saving ? "Saving..." : "Save Challenge Info"}</Text>
-                  </Pressable>
-
-                  {challenge.status !== "PUBLISHED" ? (
-                    <Pressable
-                      style={[localStyles.secondaryButton, saving && localStyles.buttonDisabled]}
-                      onPress={() => setPublishStatus("PUBLISHED")}
-                      disabled={saving}
-                    >
-                      <Text style={localStyles.secondaryButtonText}>Publish Challenge</Text>
-                    </Pressable>
-                  ) : (
-                    <Pressable
-                      style={[localStyles.secondaryButton, saving && localStyles.buttonDisabled]}
-                      onPress={() => setPublishStatus("DRAFT")}
-                      disabled={saving}
-                    >
-                      <Text style={localStyles.secondaryButtonText}>Move Back To Draft</Text>
-                    </Pressable>
-                  )}
-                </View>
-              ) : (
-                <View>
-                  <Text style={localStyles.sectionTitle}>Answer Videos</Text>
-                  {sortedSubmissions.length === 0 ? (
-                    <View style={localStyles.answerRow}>
-                      <Text style={localStyles.answerMeta}>No answers submitted yet.</Text>
-                    </View>
-                  ) : (
-                    sortedSubmissions.map((submission) => (
-                      <Pressable
-                        key={submission.id}
-                        style={localStyles.answerRow}
-                        onPress={() =>
-                          navigation.navigate("SubmissionReview", {
-                            challengeId: challenge.id,
-                            submissionId: submission.id
-                          })
-                        }
-                      >
-                        <Text style={localStyles.answerName}>{submission.student?.name ?? "Student"}</Text>
-                        <Text style={localStyles.answerMeta}>Status: {submission.status}</Text>
-                        <Text style={localStyles.answerMeta}>Score: {submission.score ?? "Not graded"}</Text>
-                        <Text style={localStyles.answerLink}>Open answer review →</Text>
-                      </Pressable>
-                    ))
-                  )}
-                </View>
-              )}
-              {activeTab === "general" ? (
-                <View style={localStyles.panelCard}>
-                  <Text style={localStyles.blockTitle}>Challenge Video</Text>
-                  <View style={localStyles.videoFrame}>
-                    <Video
-                      ref={(r) => { videoRef.current = r; }}
-                      source={{ uri: challenge.sourceVideoUrl }}
-                      style={localStyles.video}
-                      resizeMode={ResizeMode.CONTAIN}
-                      useNativeControls
-                      onPlaybackStatusUpdate={(s) => {
-                        if (s.isLoaded) setVideoPositionMs(s.positionMillis ?? 0);
+                      ref={(r) => {
+                        videoRef.current = r;
                       }}
+                      source={{ uri: challenge.sourceVideoUrl }}
+                      style={localStyles.video}
+                      resizeMode={ResizeMode.CONTAIN}
+                      shouldPlay={false}
+                      onPlaybackStatusUpdate={onVideoStatusUpdate}
                     />
                   </View>
+
+                  <View style={localStyles.playerControlsRow}>
+                    <Pressable style={localStyles.controlButton} onPress={() => seekBy(-10000)}>
+                      <Text style={localStyles.controlButtonText}>-10s</Text>
+                    </Pressable>
+                    <Pressable style={[localStyles.controlButton, localStyles.playButton]} onPress={togglePlayback}>
+                      <Text style={localStyles.controlButtonText}>{isVideoPlaying ? "Pause" : "Play"}</Text>
+                    </Pressable>
+                    <Pressable style={localStyles.controlButton} onPress={() => seekBy(10000)}>
+                      <Text style={localStyles.controlButtonText}>+10s</Text>
+                    </Pressable>
+                  </View>
+
+                  <View style={localStyles.timeRow}>
+                    <Text style={localStyles.timeText}>{formatMs(videoPositionMs)}</Text>
+                    <Text style={localStyles.timeText}>{formatMs(videoDurationMs)}</Text>
+                  </View>
+
+                  <Pressable style={localStyles.timelineTrack} onLayout={onTimelineLayout} onPress={onTimelinePress}>
+                    <View style={[localStyles.timelineProgress, { width: `${progressPct}%` }]} />
+                  </Pressable>
+
                   <View>
                     <Text style={localStyles.label}>Title</Text>
                     <TextInput
@@ -368,6 +455,7 @@ export default function ChallengeDetailScreen() {
                       style={localStyles.input}
                     />
                   </View>
+
                   <View>
                     <Text style={localStyles.label}>Description</Text>
                     <TextInput
@@ -381,9 +469,11 @@ export default function ChallengeDetailScreen() {
                       style={[localStyles.input, localStyles.inputMultiline]}
                     />
                   </View>
+
                   <Pressable style={[localStyles.primaryButton, saving && localStyles.buttonDisabled]} onPress={saveInfo} disabled={saving}>
                     <Text style={localStyles.primaryButtonText}>{saving ? "Saving..." : "Save Challenge Info"}</Text>
                   </Pressable>
+
                   {challenge.status !== "PUBLISHED" ? (
                     <Pressable
                       style={[localStyles.secondaryButton, saving && localStyles.buttonDisabled]}
@@ -405,65 +495,120 @@ export default function ChallengeDetailScreen() {
               ) : activeTab === "periods" ? (
                 <View style={localStyles.panelCard}>
                   <Text style={localStyles.blockTitle}>Answer Period Editor</Text>
-                  <Text style={{ color: "#64748b", fontSize: 13, lineHeight: 19 }}>
-                    Play the video below. When you reach the moment students should start answering, press{" "}
-                    <Text style={{ fontWeight: "700", color: "#0369a1" }}>Mark Start</Text>. When the answer window closes, press{" "}
-                    <Text style={{ fontWeight: "700", color: "#0369a1" }}>Mark End</Text>. Repeat for multiple periods. Save when done.
+                  <Text style={localStyles.helpText}>
+                    Use the custom player below. Press Start Answer Period, then Stop Answer Period to create one range. Select a range and drag its handles on the timeline to fine-tune.
                   </Text>
+
                   <View style={localStyles.videoFrame}>
                     <Video
-                      ref={(r) => { videoRef.current = r; }}
+                      ref={(r) => {
+                        videoRef.current = r;
+                      }}
                       source={{ uri: challenge.sourceVideoUrl }}
                       style={localStyles.video}
                       resizeMode={ResizeMode.CONTAIN}
-                      useNativeControls
-                      onPlaybackStatusUpdate={(s) => {
-                        if (s.isLoaded) setVideoPositionMs(s.positionMillis ?? 0);
-                      }}
+                      shouldPlay={false}
+                      onPlaybackStatusUpdate={onVideoStatusUpdate}
                     />
                   </View>
-                  <View style={{ backgroundColor: "#f0f9ff", borderRadius: 12, padding: 12, alignItems: "center" }}>
-                    <Text style={{ color: "#0369a1", fontSize: 22, fontWeight: "800", letterSpacing: 0.5 }}>
-                      {formatMs(videoPositionMs)}
-                    </Text>
-                    <Text style={{ color: "#64748b", fontSize: 12, marginTop: 2 }}>current video position</Text>
+
+                  <View style={localStyles.playerControlsRow}>
+                    <Pressable style={localStyles.controlButton} onPress={() => seekBy(-10000)}>
+                      <Text style={localStyles.controlButtonText}>-10s</Text>
+                    </Pressable>
+                    <Pressable style={[localStyles.controlButton, localStyles.playButton]} onPress={togglePlayback}>
+                      <Text style={localStyles.controlButtonText}>{isVideoPlaying ? "Pause" : "Play"}</Text>
+                    </Pressable>
+                    <Pressable style={localStyles.controlButton} onPress={() => seekBy(10000)}>
+                      <Text style={localStyles.controlButtonText}>+10s</Text>
+                    </Pressable>
                   </View>
-                  <View style={{ flexDirection: "row", gap: 10 }}>
+
+                  <View style={localStyles.timeRow}>
+                    <Text style={localStyles.timeText}>{formatMs(videoPositionMs)}</Text>
+                    <Text style={localStyles.timeText}>{formatMs(videoDurationMs)}</Text>
+                  </View>
+
+                  <Pressable style={localStyles.timelineTrack} onLayout={onTimelineLayout} onPress={onTimelinePress}>
+                    <View style={[localStyles.timelineProgress, { width: `${progressPct}%` }]} />
+
+                    {hasDuration
+                      ? periods.map((p, i) => {
+                        const leftPct = (p.startMs / videoDurationMs) * 100;
+                        const widthPct = Math.max(((p.endMs - p.startMs) / videoDurationMs) * 100, 0.75);
+                        const selected = i === selectedPeriodIndex;
+                        return (
+                          <Pressable
+                            key={`${p.startMs}-${p.endMs}-${i}`}
+                            style={[
+                              localStyles.periodBar,
+                              selected && localStyles.periodBarSelected,
+                              { left: `${leftPct}%`, width: `${widthPct}%` }
+                            ]}
+                            onPress={() => setSelectedPeriodIndex(i)}
+                          />
+                        );
+                      })
+                      : null}
+
+                    {selectedPeriod && hasDuration && timelineWidth > 0 ? (
+                      <>
+                        <View
+                          style={[localStyles.dragHandle, { left: Math.max(0, Math.min(selectedStartPx - 6, timelineWidth - 12)) }]}
+                          {...leftHandleResponder.panHandlers}
+                        />
+                        <View
+                          style={[localStyles.dragHandle, { left: Math.max(0, Math.min(selectedEndPx - 6, timelineWidth - 12)) }]}
+                          {...rightHandleResponder.panHandlers}
+                        />
+                      </>
+                    ) : null}
+                  </Pressable>
+
+                  <View style={localStyles.periodActionsRow}>
                     <Pressable
-                      style={[localStyles.primaryButton, { flex: 1, backgroundColor: pendingStartMs !== null ? "#64748b" : "#0369a1" }]}
-                      onPress={markStart}
+                      style={[localStyles.primaryButton, { flex: 1, backgroundColor: pendingStartMs === null ? "#0369a1" : "#64748b" }]}
+                      onPress={handleAnswerPeriodButton}
                     >
                       <Text style={localStyles.primaryButtonText}>
-                        {pendingStartMs !== null ? `Start: ${formatMs(pendingStartMs)}` : "▶ Mark Start"}
+                        {pendingStartMs === null ? "Start Answer Period" : "Stop Answer Period"}
                       </Text>
                     </Pressable>
-                    <Pressable
-                      style={[localStyles.primaryButton, { flex: 1, backgroundColor: pendingStartMs === null ? "#94a3b8" : "#0369a1" }]}
-                      onPress={markEnd}
-                      disabled={pendingStartMs === null}
-                    >
-                      <Text style={localStyles.primaryButtonText}>⏹ Mark End</Text>
-                    </Pressable>
                   </View>
+
+                  <View style={localStyles.pendingBadge}>
+                    <Text style={localStyles.pendingBadgeText}>
+                      {pendingStartMs === null ? "Ready to mark a new period." : `Start marked at ${formatMs(pendingStartMs)}. Move video and press Stop Answer Period.`}
+                    </Text>
+                  </View>
+
                   {periods.length > 0 ? (
                     <View style={{ gap: 8 }}>
                       <Text style={[localStyles.label, { marginBottom: 0 }]}>Defined Periods</Text>
                       {periods.map((p, i) => (
-                        <View key={i} style={{ flexDirection: "row", alignItems: "center", backgroundColor: "#f8fafc", borderRadius: 10, padding: 10, borderWidth: 1, borderColor: "#dbe4ef" }}>
-                          <Text style={{ flex: 1, color: "#0f172a", fontWeight: "700", fontSize: 14 }}>
-                            {i + 1}. {formatMs(p.startMs)} → {formatMs(p.endMs)}
+                        <Pressable
+                          key={`${p.startMs}-${p.endMs}-${i}`}
+                          style={[
+                            localStyles.periodRow,
+                            i === selectedPeriodIndex && localStyles.periodRowSelected
+                          ]}
+                          onPress={() => setSelectedPeriodIndex(i)}
+                        >
+                          <Text style={localStyles.periodRowText}>
+                            {i + 1}. {formatMs(p.startMs)} {">"} {formatMs(p.endMs)}
                           </Text>
                           <Pressable onPress={() => removePeriod(i)} style={{ paddingHorizontal: 10, paddingVertical: 6 }}>
-                            <Text style={{ color: "#ef4444", fontWeight: "800", fontSize: 14 }}>✕</Text>
+                            <Text style={{ color: "#ef4444", fontWeight: "800", fontSize: 14 }}>X</Text>
                           </Pressable>
-                        </View>
+                        </Pressable>
                       ))}
                     </View>
                   ) : (
-                    <View style={{ backgroundColor: "#f8fafc", borderRadius: 10, padding: 14, alignItems: "center", borderWidth: 1, borderColor: "#dbe4ef" }}>
-                      <Text style={{ color: "#94a3b8", fontSize: 14 }}>No periods defined yet. Use the buttons above while the video plays.</Text>
+                    <View style={localStyles.emptyPeriodsCard}>
+                      <Text style={localStyles.emptyPeriodsText}>No periods defined yet.</Text>
                     </View>
                   )}
+
                   <Pressable
                     style={[localStyles.primaryButton, savingPeriods && localStyles.buttonDisabled]}
                     onPress={saveAnswerPeriods}
@@ -494,7 +639,7 @@ export default function ChallengeDetailScreen() {
                         <Text style={localStyles.answerName}>{submission.student?.name ?? "Student"}</Text>
                         <Text style={localStyles.answerMeta}>Status: {submission.status}</Text>
                         <Text style={localStyles.answerMeta}>Score: {submission.score ?? "Not graded"}</Text>
-                        <Text style={localStyles.answerLink}>Open answer review →</Text>
+                        <Text style={localStyles.answerLink}>Open answer review {">"}</Text>
                       </Pressable>
                     ))
                   )}
@@ -639,15 +784,143 @@ const localStyles = StyleSheet.create({
     fontSize: 18,
     fontWeight: "800"
   },
+  helpText: {
+    color: "#64748b",
+    fontSize: 13,
+    lineHeight: 19
+  },
   videoFrame: {
     backgroundColor: "#0b1220",
     borderRadius: 14,
     overflow: "hidden",
-    minHeight: 220
+    width: "68%",
+    minWidth: 220,
+    maxWidth: 320,
+    aspectRatio: 9 / 16,
+    alignSelf: "center",
+    borderWidth: 1,
+    borderColor: "#1e293b"
   },
   video: {
     width: "100%",
-    minHeight: 220
+    height: "100%"
+  },
+  playerControlsRow: {
+    flexDirection: "row",
+    gap: 10,
+    alignItems: "center"
+  },
+  controlButton: {
+    flex: 1,
+    minHeight: 42,
+    borderRadius: 10,
+    backgroundColor: "#0f2742",
+    alignItems: "center",
+    justifyContent: "center"
+  },
+  playButton: {
+    backgroundColor: "#0369a1"
+  },
+  controlButtonText: {
+    color: "#ffffff",
+    fontSize: 14,
+    fontWeight: "700"
+  },
+  timeRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center"
+  },
+  timeText: {
+    color: "#475569",
+    fontSize: 12,
+    fontWeight: "700"
+  },
+  timelineTrack: {
+    position: "relative",
+    height: 26,
+    borderRadius: 999,
+    backgroundColor: "#e2e8f0",
+    overflow: "hidden",
+    justifyContent: "center"
+  },
+  timelineProgress: {
+    position: "absolute",
+    left: 0,
+    top: 0,
+    bottom: 0,
+    backgroundColor: "#7dd3fc"
+  },
+  periodBar: {
+    position: "absolute",
+    top: 6,
+    bottom: 6,
+    borderRadius: 999,
+    backgroundColor: "rgba(3, 105, 161, 0.35)",
+    borderWidth: 1,
+    borderColor: "rgba(3, 105, 161, 0.7)"
+  },
+  periodBarSelected: {
+    backgroundColor: "rgba(2, 132, 199, 0.5)",
+    borderColor: "#0369a1"
+  },
+  dragHandle: {
+    position: "absolute",
+    top: 2,
+    width: 12,
+    height: 22,
+    borderRadius: 6,
+    backgroundColor: "#ffffff",
+    borderWidth: 2,
+    borderColor: "#0369a1"
+  },
+  periodActionsRow: {
+    flexDirection: "row",
+    gap: 10
+  },
+  pendingBadge: {
+    backgroundColor: "#f0f9ff",
+    borderRadius: 10,
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+    borderWidth: 1,
+    borderColor: "#bae6fd"
+  },
+  pendingBadgeText: {
+    color: "#0369a1",
+    fontSize: 12,
+    fontWeight: "700"
+  },
+  periodRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#f8fafc",
+    borderRadius: 10,
+    padding: 10,
+    borderWidth: 1,
+    borderColor: "#dbe4ef"
+  },
+  periodRowSelected: {
+    borderColor: "#0369a1",
+    backgroundColor: "#eff6ff"
+  },
+  periodRowText: {
+    flex: 1,
+    color: "#0f172a",
+    fontWeight: "700",
+    fontSize: 14
+  },
+  emptyPeriodsCard: {
+    backgroundColor: "#f8fafc",
+    borderRadius: 10,
+    padding: 14,
+    alignItems: "center",
+    borderWidth: 1,
+    borderColor: "#dbe4ef"
+  },
+  emptyPeriodsText: {
+    color: "#94a3b8",
+    fontSize: 14
   },
   label: {
     color: "#0f172a",
@@ -745,4 +1018,3 @@ const localStyles = StyleSheet.create({
     fontWeight: "600"
   }
 });
-
