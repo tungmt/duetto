@@ -3,6 +3,7 @@ import { NavigationContainer } from "@react-navigation/native";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 import { ActivityIndicator, View } from "react-native";
+import { Ionicons } from "@expo/vector-icons";
 import { getSessionUserId } from "../src/session";
 import { isReadyRef, navigationRef } from "../src/navigation";
 
@@ -25,10 +26,25 @@ const Tab = createBottomTabNavigator();
 function DashboardTabs() {
   return (
     <Tab.Navigator
-      screenOptions={{
+      screenOptions={({ route }) => ({
         headerShown: false,
         tabBarLabelPosition: "below-icon",
-      }}
+        tabBarActiveTintColor: "#0369a1",
+        tabBarInactiveTintColor: "#64748b",
+        tabBarIcon: ({ focused, color, size }) => {
+          let iconName: keyof typeof Ionicons.glyphMap = "ellipse";
+
+          if (route.name === "ChallengesTab") {
+            iconName = focused ? "play-circle" : "play-circle-outline";
+          } else if (route.name === "SubmissionsTab") {
+            iconName = focused ? "checkmark-done" : "checkmark-done-outline";
+          } else if (route.name === "ProfileTab") {
+            iconName = focused ? "person" : "person-outline";
+          }
+
+          return <Ionicons name={iconName} size={size} color={color} />;
+        }
+      })}
     >
       <Tab.Screen 
         name="ChallengesTab" 
@@ -72,7 +88,7 @@ function AuthStack() {
 
 function AppStack() {
   return (
-    <Stack.Navigator>
+    <Stack.Navigator screenOptions={{ headerShown: false }}>
       <Stack.Screen 
         name="Dashboard" 
         component={DashboardTabs}

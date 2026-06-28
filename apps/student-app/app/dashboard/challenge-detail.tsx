@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Audio, AVPlaybackStatusSuccess, ResizeMode, Video } from "expo-av";
-import { Alert, Image, KeyboardAvoidingView, Platform, Pressable, ScrollView, Text, View } from "react-native";
+import { Camera, CameraView } from "expo-camera";
+import { Alert, Image, KeyboardAvoidingView, LayoutChangeEvent, Platform, Pressable, ScrollView, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { api } from "../../src/api";
 import nav from "../../src/navigation";
@@ -27,8 +28,8 @@ type Challenge = {
   } | null;
 };
 
-// idle: playing, mic off  |  recording: mic on, video muted  |  done: all periods captured
-type OrchestrateState = "idle" | "recording" | "done";
+// idle: playing, mic off  |  duetting: camera ready, not recording yet  |  recording: mic on, video muted  |  done: all periods captured
+type OrchestrateState = "idle" | "duetting" | "recording" | "done";
 
 function getInitials(name: string) {
   const parts = name.trim().split(/\s+/).filter(Boolean);
@@ -50,6 +51,7 @@ export default function ChallengeDetailScreen({ navigation, route }: any) {
   const segmentUrisRef = useRef<string[]>([]);
   const currentPeriodIndexRef = useRef(0);
   const isOrchestratingRef = useRef(false);
+  const recordingArmedRef = useRef(false);
 
   // Preview sync refs
   const previewSoundRef = useRef<Audio.Sound | null>(null);
@@ -62,6 +64,13 @@ export default function ChallengeDetailScreen({ navigation, route }: any) {
   const [isMuted, setIsMuted] = useState(false);
   const [previewLoading, setPreviewLoading] = useState(false);
   const [previewReady, setPreviewReady] = useState(false);
+  const [isRecordingArmed, setIsRecordingArmed] = useState(false);
+  const [videoPositionMs, setVideoPositionMs] = useState(0);
+  const [videoDurationMs, setVideoDurationMs] = useState(0);
+  const [timelineWidth, setTimelineWidth] = useState(0);
+  const cameraRef = useRef<CameraView | null>(null);
+  const [studentVideoUri, setStudentVideoUri] = useState<string | null>(null);
+  const [cameraPermission, setCameraPermission] = useState<boolean | null>(null);
 
   const hasPeriods = (challenge?.answerPeriods?.length ?? 0) > 0;
 
@@ -75,6 +84,27 @@ export default function ChallengeDetailScreen({ navigation, route }: any) {
       previewSoundRef.current?.unloadAsync().catch(() => undefined);
     };
   }, [id]);
+
+  useEffect(() => {
+    (async () => {
+      const cameraPerm = await Camera.requestCameraPermissionsAsync();
+      setCameraPermission(cameraPerm.granted);
+    })();
+  }, []);
+
+  async function startDuetting() {
+    const cameraPerm = await Camera.requestCameraPermissionsAsync();
+    if (!cameraPerm.granted) {
+      Alert.alert("Camera Permission Required", "Please enable camera access in Settings to use the Duet feature.");
+      return;
+    }
+    setCameraPermission(true);
+    setOrchestrateState("duetting");
+  }
+
+  async function cancelDuetting() {
+    setOrchestrateState("idle");
+  }
 
   // ── Orchestration engine ─────────────────────────────────────────────────
 
@@ -106,32 +136,32 @@ export default function ChallengeDetailScreen({ navigation, route }: any) {
 
   async function onVideoPositionUpdate(status: AVPlaybackStatusSuccess) {
     if (isOrchestratingRef.current) return;
+    if (!recordingArmedRef.current) return;
     const periods = challenge?.answerPeriods ?? [];
     if (periods.length === 0) return;
     const pos = status.positionMillis ?? 0;
     const state = orchestrateStateRef.current;
-    const idx = currentPeriodIndexRef.current;
-    if (state === "done" || idx >= periods.length) return;
-    const period = periods[idx];
+    if (state === "done") return;
 
-    if (state === "idle" && pos >= period.startMs) {
-      isOrchestratingRef.current = true;
-      try { await startPeriodRecording(); } finally { isOrchestratingRef.current = false; }
-    } else if (state === "recording" && pos >= period.endMs) {
+    // Keep period progress in sync for UI while recording a single full-length track.
+    const nextIndex = periods.findIndex((p) => pos < p.endMs);
+    const normalizedIndex = nextIndex === -1 ? periods.length : nextIndex;
+    if (normalizedIndex !== currentPeriodIndexRef.current) {
+      currentPeriodIndexRef.current = normalizedIndex;
+      setCurrentPeriodIndex(normalizedIndex);
+    }
+
+    // Finalize recording only when the full video finishes.
+    if (state === "recording" && status.didJustFinish) {
       isOrchestratingRef.current = true;
       try {
         await stopPeriodRecording();
-        const nextIdx = idx + 1;
-        currentPeriodIndexRef.current = nextIdx;
-        setCurrentPeriodIndex(nextIdx);
-        if (nextIdx >= periods.length) {
-          orchestrateStateRef.current = "done";
-          setOrchestrateState("done");
-          await challengeVideoRef.current?.pauseAsync();
-        } else {
-          orchestrateStateRef.current = "idle";
-          setOrchestrateState("idle");
-        }
+        currentPeriodIndexRef.current = periods.length;
+        setCurrentPeriodIndex(periods.length);
+        orchestrateStateRef.current = "done";
+        setOrchestrateState("done");
+        recordingArmedRef.current = false;
+        setIsRecordingArmed(false);
       } finally { isOrchestratingRef.current = false; }
     }
   }
@@ -146,11 +176,54 @@ export default function ChallengeDetailScreen({ navigation, route }: any) {
     setCurrentPeriodIndex(0);
     setSegmentCount(0);
     setIsMuted(false);
+    recordingArmedRef.current = false;
+    setIsRecordingArmed(false);
+    setStudentVideoUri(null);
     challengeVideoRef.current?.setIsMutedAsync(false).catch(() => undefined);
     challengeVideoRef.current?.setPositionAsync(0).catch(() => undefined);
     previewSoundRef.current?.unloadAsync().catch(() => undefined);
     previewSoundRef.current = null;
     setPreviewReady(false);
+  }
+
+  async function startAutoRecordingFromBeginning() {
+    resetOrchestration();
+    recordingArmedRef.current = true;
+    setIsRecordingArmed(true);
+    // Show placeholder for side-by-side preview
+    setStudentVideoUri("placeholder");
+    await startPeriodRecording();
+    await challengeVideoRef.current?.setPositionAsync(0);
+    await challengeVideoRef.current?.playAsync();
+  }
+
+  async function cancelAutoRecording() {
+    resetOrchestration();
+    await challengeVideoRef.current?.pauseAsync();
+  }
+
+  // ── Custom video tracker ─────────────────────────────────────────────────
+
+  async function seekTo(targetMs: number) {
+    if (!challengeVideoRef.current || videoDurationMs <= 0) {
+      return;
+    }
+    const next = Math.max(0, Math.min(targetMs, videoDurationMs));
+    await challengeVideoRef.current.setPositionAsync(next);
+  }
+
+  async function onTimelinePress(event: any) {
+    if (videoDurationMs <= 0 || timelineWidth <= 0) {
+      return;
+    }
+
+    const x = event.nativeEvent?.locationX ?? 0;
+    const ratio = Math.max(0, Math.min(x / timelineWidth, 1));
+    await seekTo(ratio * videoDurationMs);
+  }
+
+  function onTimelineLayout(event: LayoutChangeEvent) {
+    setTimelineWidth(event.nativeEvent.layout.width);
   }
 
   // ── Preview: answer audio synced to video replay ─────────────────────────
@@ -174,8 +247,14 @@ export default function ChallengeDetailScreen({ navigation, route }: any) {
     } catch { /* ignore single-frame errors */ } finally { previewSyncBusyRef.current = false; }
   }
 
-  async function loadPreviewAudio() {
-    if (segmentUrisRef.current.length === 0 || previewSoundRef.current) return;
+  async function ensurePreviewAudioReady() {
+    if (previewSoundRef.current) {
+      return previewSoundRef.current;
+    }
+    if (segmentUrisRef.current.length === 0) {
+      return null;
+    }
+
     setPreviewLoading(true);
     try {
       const { sound } = await Audio.Sound.createAsync(
@@ -184,9 +263,26 @@ export default function ChallengeDetailScreen({ navigation, route }: any) {
       );
       previewSoundRef.current = sound;
       setPreviewReady(true);
+      return sound;
     } finally {
       setPreviewLoading(false);
     }
+  }
+
+  async function playPreviewFromBeginning() {
+    if (segmentUrisRef.current.length === 0) {
+      return;
+    }
+
+    const sound = await ensurePreviewAudioReady();
+    if (!sound) {
+      return;
+    }
+
+    await sound.setPositionAsync(0);
+    await challengeVideoRef.current?.setPositionAsync(0);
+    await challengeVideoRef.current?.playAsync();
+    await sound.playAsync();
   }
 
   // ── Upload & Submit ───────────────────────────────────────────────────────
@@ -266,12 +362,20 @@ export default function ChallengeDetailScreen({ navigation, route }: any) {
     const periods = challenge?.answerPeriods ?? [];
     if (orchestrateState === "done") return "All answer periods recorded ✓";
     if (orchestrateState === "recording") {
-      const p = periods[currentPeriodIndex];
-      return `🎙 Recording period ${currentPeriodIndex + 1}/${periods.length}  (ends ${formatMs(p?.endMs ?? 0)})`;
+      return `🎙 Recording in progress. Speak during the highlighted answer periods.`;
+    }
+    if (!isRecordingArmed) {
+      return "Press Record Your Answer to restart from the beginning and auto-record answer periods.";
     }
     const p = periods[currentPeriodIndex];
-    return `▶ Press play — period ${currentPeriodIndex + 1} starts at ${formatMs(p?.startMs ?? 0)}`;
+    return `▶ Recording armed — period ${currentPeriodIndex + 1} starts at ${formatMs(p?.startMs ?? 0)}`;
   }
+
+  const hasDuration = videoDurationMs > 0;
+  const progressPct = hasDuration ? Math.max(0, Math.min((videoPositionMs / videoDurationMs) * 100, 100)) : 0;
+  const thumbLeftPx = hasDuration && timelineWidth > 0
+    ? Math.max(0, Math.min((videoPositionMs / videoDurationMs) * timelineWidth - 5, timelineWidth - 10))
+    : 0;
 
   if (!challenge) {
     return (
@@ -356,24 +460,220 @@ export default function ChallengeDetailScreen({ navigation, route }: any) {
             ) : null}
 
             {/* Video */}
-            <View>
-              <Video
-                ref={(ref) => {
-                  challengeVideoRef.current = ref;
-                }}
-                source={{ uri: challenge.sourceVideoUrl }}
-                style={styles.videoContainer}
-                resizeMode={ResizeMode.CONTAIN}
-                useNativeControls
-                onPlaybackStatusUpdate={(status) => {
-                  if (!status.isLoaded) return;
-                  if (orchestrateState === "done") {
-                    syncPreviewToVideo(status as AVPlaybackStatusSuccess);
-                  } else if (hasPeriods) {
-                    onVideoPositionUpdate(status as AVPlaybackStatusSuccess);
-                  }
-                }}
-              />
+            {orchestrateState === "duetting" || orchestrateState === "recording" ? (
+              /* Side-by-side during duetting/recording: Camera (left) + Challenge Video (right) */
+              <View style={{ marginTop: 12, gap: 8 }}>
+                {!cameraPermission ? (
+                  <View style={{ backgroundColor: "rgba(239,68,68,0.1)", borderRadius: 12, padding: 12, gap: 8 }}>
+                    <Text style={{ color: "#ef4444", fontSize: 14, fontWeight: "700" }}>Camera Permission Required</Text>
+                    <Text style={{ color: "#666", fontSize: 12 }}>Enable camera access in your device settings to record a duet.</Text>
+                    <Pressable
+                      style={[styles.button]}
+                      onPress={async () => {
+                        const cameraPerm = await Camera.requestCameraPermissionsAsync();
+                        setCameraPermission(cameraPerm.granted);
+                      }}
+                    >
+                      <Text style={styles.buttonText}>Request Camera Access</Text>
+                    </Pressable>
+                  </View>
+                ) : (
+                  <View
+                    style={{
+                      flexDirection: "row",
+                      gap: 8,
+                      height: 320,
+                      borderRadius: 12,
+                      overflow: "hidden",
+                      backgroundColor: "#000000"
+                    }}
+                  >
+                    {/* Camera - LEFT */}
+                    <View style={{ flex: 1, backgroundColor: "#1e293b", position: "relative" }}>
+                      <CameraView ref={cameraRef} style={{ flex: 1 }} facing="front" />
+                      <View
+                        style={{
+                          position: "absolute",
+                          top: 8,
+                          left: 8,
+                          backgroundColor: "rgba(0,0,0,0.6)",
+                          paddingHorizontal: 8,
+                          paddingVertical: 4,
+                          borderRadius: 6
+                        }}
+                      >
+                        <Text style={{ color: "#ffffff", fontSize: 10, fontWeight: "600" }}>Your Camera</Text>
+                      </View>
+                      <View
+                        style={{
+                          position: "absolute",
+                          top: 8,
+                          right: 8,
+                          flexDirection: "row",
+                          alignItems: "center",
+                          gap: 4,
+                          backgroundColor: "rgba(239,68,68,0.8)",
+                          paddingHorizontal: 8,
+                          paddingVertical: 4,
+                          borderRadius: 6
+                        }}
+                      >
+                        <Text style={{ fontSize: 10, color: "#ffffff" }}>🔴</Text>
+                        <Text style={{ color: "#ffffff", fontSize: 10, fontWeight: "600" }}>
+                          {orchestrateState === "recording" ? "Recording" : "Ready"}
+                        </Text>
+                      </View>
+                    </View>
+
+                    {/* Challenge Video - RIGHT */}
+                    <View style={{ flex: 1, backgroundColor: "#1e293b", position: "relative" }}>
+                      <Video
+                        ref={(ref) => {
+                          challengeVideoRef.current = ref;
+                        }}
+                        source={{ uri: challenge.sourceVideoUrl }}
+                        style={{ flex: 1 }}
+                        resizeMode={ResizeMode.COVER}
+                        onPlaybackStatusUpdate={(status) => {
+                          if (!status.isLoaded) return;
+                          setVideoPositionMs(status.positionMillis ?? 0);
+                          setVideoDurationMs(status.durationMillis ?? 0);
+                          if (hasPeriods) {
+                            onVideoPositionUpdate(status as AVPlaybackStatusSuccess);
+                          }
+                        }}
+                      />
+                      <View
+                        style={{
+                          position: "absolute",
+                          top: 8,
+                          left: 8,
+                          backgroundColor: "rgba(0,0,0,0.6)",
+                          paddingHorizontal: 8,
+                          paddingVertical: 4,
+                          borderRadius: 6
+                        }}
+                      >
+                        <Text style={{ color: "#ffffff", fontSize: 10, fontWeight: "600" }}>Challenge</Text>
+                      </View>
+                    </View>
+                  </View>
+                )}
+                {orchestrateState === "duetting" && cameraPermission ? (
+                  <View style={{ flexDirection: "row", gap: 8 }}>
+                    <Pressable
+                      style={[styles.button, { flex: 1 }]}
+                      onPress={startAutoRecordingFromBeginning}
+                      disabled={loading}
+                    >
+                      <Text style={styles.buttonText}>Record Your Answer</Text>
+                    </Pressable>
+                    <Pressable
+                      style={[styles.buttonSecondary, { flex: 1 }]}
+                      onPress={cancelDuetting}
+                      disabled={loading}
+                    >
+                      <Text style={styles.buttonSecondaryText}>Cancel</Text>
+                    </Pressable>
+                  </View>
+                ) : null}
+                {isMuted ? (
+                  <View style={{ flexDirection: "row", alignItems: "center", gap: 6, backgroundColor: "rgba(239,68,68,0.12)", borderRadius: 8, padding: 8 }}>
+                    <Text style={{ fontSize: 16 }}>🔇</Text>
+                    <Text style={{ color: "#ef4444", fontSize: 12, fontWeight: "700", flex: 1 }}>
+                      Video audio muted — microphone is active
+                    </Text>
+                  </View>
+                ) : null}
+              </View>
+            ) : (
+              /* Normal view: Full challenge video + timeline */
+              <View>
+                <Video
+                  ref={(ref) => {
+                    challengeVideoRef.current = ref;
+                  }}
+                  source={{ uri: challenge.sourceVideoUrl }}
+                  style={styles.videoContainer}
+                  resizeMode={ResizeMode.CONTAIN}
+                  useNativeControls
+                  onPlaybackStatusUpdate={(status) => {
+                    if (!status.isLoaded) return;
+                    setVideoPositionMs(status.positionMillis ?? 0);
+                    setVideoDurationMs(status.durationMillis ?? 0);
+                    if (orchestrateState === "done") {
+                      syncPreviewToVideo(status as AVPlaybackStatusSuccess);
+                    } else if (hasPeriods) {
+                      onVideoPositionUpdate(status as AVPlaybackStatusSuccess);
+                    }
+                  }}
+                />
+                <View style={{ marginTop: 8 }}>
+                  <Pressable
+                    onLayout={onTimelineLayout}
+                    onPress={onTimelinePress}
+                    style={{
+                      height: 24,
+                      borderRadius: 999,
+                      backgroundColor: "#e2e8f0",
+                      overflow: "hidden",
+                      justifyContent: "center",
+                      position: "relative"
+                    }}
+                  >
+                  <View
+                    style={{
+                      position: "absolute",
+                      left: 0,
+                      top: 0,
+                      bottom: 0,
+                      width: `${progressPct}%`,
+                      backgroundColor: "#7dd3fc"
+                    }}
+                  />
+
+                  {hasDuration && challenge.answerPeriods?.length
+                    ? challenge.answerPeriods.map((p, i) => {
+                        const leftPct = (p.startMs / videoDurationMs) * 100;
+                        const widthPct = Math.max(((p.endMs - p.startMs) / videoDurationMs) * 100, 0.75);
+                        return (
+                          <View
+                            key={`${p.startMs}-${p.endMs}-${i}`}
+                            style={{
+                              position: "absolute",
+                              top: 5,
+                              bottom: 5,
+                              borderRadius: 999,
+                              backgroundColor: "rgba(2, 132, 199, 0.35)",
+                              borderWidth: 1,
+                              borderColor: "rgba(2, 132, 199, 0.65)",
+                              left: `${leftPct}%`,
+                              width: `${widthPct}%`
+                            }}
+                          />
+                        );
+                      })
+                    : null}
+
+                  <View
+                    style={{
+                      position: "absolute",
+                      width: 10,
+                      height: 10,
+                      borderRadius: 5,
+                      backgroundColor: "#0369a1",
+                      borderWidth: 1,
+                      borderColor: "#ffffff",
+                      top: 7,
+                      left: thumbLeftPx
+                    }}
+                  />
+                </Pressable>
+                <View style={{ flexDirection: "row", justifyContent: "space-between", marginTop: 6 }}>
+                  <Text style={{ color: "#64748b", fontSize: 12, fontWeight: "700" }}>{formatMs(videoPositionMs)}</Text>
+                  <Text style={{ color: "#64748b", fontSize: 12, fontWeight: "700" }}>{formatMs(videoDurationMs)}</Text>
+                </View>
+              </View>
               {isMuted ? (
                 <View style={{ flexDirection: "row", alignItems: "center", gap: 6, marginTop: 6, backgroundColor: "rgba(239,68,68,0.12)", borderRadius: 8, padding: 8 }}>
                   <Text style={{ fontSize: 16 }}>🔇</Text>
@@ -382,7 +682,8 @@ export default function ChallengeDetailScreen({ navigation, route }: any) {
                   </Text>
                 </View>
               ) : null}
-            </View>
+              </View>
+            )}
 
             {/* Orchestrated or manual recording */}
             {hasPeriods ? (
@@ -400,17 +701,49 @@ export default function ChallengeDetailScreen({ navigation, route }: any) {
                     color: orchestrateState === "recording" ? "#ef4444"
                       : orchestrateState === "done" ? "#16a34a" : "#0369a1"
                   }}>
-                    {orchestrateState === "idle" && currentPeriodIndex === 0
-                      ? "Press ▶ on the video to start. Recording begins automatically at the right moments."
-                      : periodStatusLabel()}
+                    {periodStatusLabel()}
                   </Text>
                 </View>
+
+                {orchestrateState === "idle" && !isRecordingArmed ? (
+                  <Pressable
+                    style={[styles.button, loading && styles.buttonDisabled]}
+                    onPress={startDuetting}
+                    disabled={loading}
+                  >
+                    <Text style={styles.buttonText}>Duet</Text>
+                  </Pressable>
+                ) : null}
+
+                {orchestrateState === "idle" && isRecordingArmed ? (
+                  <Pressable
+                    style={[styles.button, loading && styles.buttonDisabled]}
+                    onPress={startDuetting}
+                    disabled={loading}
+                  >
+                    <Text style={styles.buttonText}>Record Your Answer Again</Text>
+                  </Pressable>
+                ) : null}
+
+                {orchestrateState === "recording" ? (
+                  <Pressable
+                    style={styles.buttonSecondary}
+                    onPress={cancelAutoRecording}
+                    disabled={loading}
+                  >
+                    <Text style={styles.buttonSecondaryText}>Cancel Recording</Text>
+                  </Pressable>
+                ) : null}
 
                 {/* Period timeline */}
                 <View style={{ gap: 6 }}>
                   {challenge.answerPeriods.map((p, i) => {
                     const isDone = orchestrateState === "done" || i < currentPeriodIndex;
-                    const isActive = i === currentPeriodIndex && orchestrateState === "recording";
+                    const isActive =
+                      orchestrateState === "recording" &&
+                      i === currentPeriodIndex &&
+                      videoPositionMs >= p.startMs &&
+                      videoPositionMs < p.endMs;
                     return (
                       <View key={i} style={{
                         flexDirection: "row", alignItems: "center", gap: 10,
@@ -431,15 +764,84 @@ export default function ChallengeDetailScreen({ navigation, route }: any) {
                   <View style={{ gap: 10 }}>
                     <View style={styles.cardDark}>
                       <Text style={styles.title}>✓ {segmentCount} segment{segmentCount !== 1 ? "s" : ""} recorded</Text>
-                      <Text style={styles.status}>Replay the video to preview your answer audio in sync. Then submit below.</Text>
+                      <Text style={styles.status}>Preview your answer with the challenge below. Then submit.</Text>
                     </View>
+
+                    {/* Side-by-side video preview */}
+                    {studentVideoUri ? (
+                      <View style={{ gap: 8 }}>
+                        <Text style={styles.sectionTitle}>Your Duet Preview</Text>
+                        <View
+                          style={{
+                            flexDirection: "row",
+                            gap: 8,
+                            height: 280,
+                            borderRadius: 12,
+                            overflow: "hidden",
+                            backgroundColor: "#000000"
+                          }}
+                        >
+                          {/* Original Challenge */}
+                          <View style={{ flex: 1, backgroundColor: "#1e293b", position: "relative" }}>
+                            <Video
+                              source={{ uri: challenge.sourceVideoUrl }}
+                              style={{ flex: 1 }}
+                              resizeMode={ResizeMode.COVER}
+                              shouldPlay={false}
+                              useNativeControls={false}
+                            />
+                            <View
+                              style={{
+                                position: "absolute",
+                                top: 8,
+                                left: 8,
+                                backgroundColor: "rgba(0,0,0,0.6)",
+                                paddingHorizontal: 8,
+                                paddingVertical: 4,
+                                borderRadius: 6
+                              }}
+                            >
+                              <Text style={{ color: "#ffffff", fontSize: 10, fontWeight: "600" }}>Challenge</Text>
+                            </View>
+                          </View>
+
+                          {/* Student Camera */}
+                          <View style={{ flex: 1, backgroundColor: "#1e293b", position: "relative" }}>
+                            <Video
+                              source={{ uri: studentVideoUri }}
+                              style={{ flex: 1 }}
+                              resizeMode={ResizeMode.COVER}
+                              shouldPlay={false}
+                              useNativeControls={false}
+                            />
+                            <View
+                              style={{
+                                position: "absolute",
+                                top: 8,
+                                left: 8,
+                                backgroundColor: "rgba(0,0,0,0.6)",
+                                paddingHorizontal: 8,
+                                paddingVertical: 4,
+                                borderRadius: 6
+                              }}
+                            >
+                              <Text style={{ color: "#ffffff", fontSize: 10, fontWeight: "600" }}>Your Response</Text>
+                            </View>
+                          </View>
+                        </View>
+                        <Text style={{ color: "#64748b", fontSize: 12, fontStyle: "italic" }}>
+                          Your side-by-side video will be generated after you submit
+                        </Text>
+                      </View>
+                    ) : null}
+
                     <Pressable
-                      style={[styles.buttonSecondary, (previewLoading || previewReady) && { opacity: 0.6 }]}
-                      onPress={loadPreviewAudio}
-                      disabled={previewLoading || previewReady}
+                      style={[styles.buttonSecondary, previewLoading && { opacity: 0.6 }]}
+                      onPress={playPreviewFromBeginning}
+                      disabled={previewLoading}
                     >
                       <Text style={styles.buttonSecondaryText}>
-                        {previewLoading ? "Preparing audio…" : previewReady ? "▶ Press play on video to preview" : "Load Answer Audio for Preview"}
+                        {previewLoading ? "Preparing audio…" : previewReady ? "Listen Again (From Start)" : "Listen Again (From Start)"}
                       </Text>
                     </Pressable>
                     <Pressable

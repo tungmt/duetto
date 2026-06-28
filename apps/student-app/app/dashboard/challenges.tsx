@@ -1,10 +1,13 @@
-import { ResizeMode, Video } from "expo-av";
+import { Audio, ResizeMode, Video } from "expo-av";
 import { useBottomTabBarHeight } from "@react-navigation/bottom-tabs";
-import { useEffect, useMemo, useRef, useState } from "react";
-import { Dimensions, FlatList, Image, Pressable, Text, View } from "react-native";
+import { useFocusEffect } from "@react-navigation/native";
+import { useEffect, useMemo, useRef, useState, useCallback } from "react";
+import { Dimensions, FlatList, Image, Pressable, StyleSheet, Text, View } from "react-native";
+import { Ionicons } from "@expo/vector-icons";
 import { api } from "../../src/api";
 import nav from "../../src/navigation";
 import { styles } from "../../src/styles";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 type Challenge = {
   id: string;
@@ -69,6 +72,8 @@ export default function ChallengesScreen({ navigation }: any) {
   const [activeId, setActiveId] = useState<string | null>(null);
   const [nextCursor, setNextCursor] = useState<string | null>(null);
   const [hasMore, setHasMore] = useState(true);
+  const [isMuted, setIsMuted] = useState(false);
+  const insets = useSafeAreaInsets();
 
   const windowHeight = Dimensions.get("window").height;
   const tabBarHeight = useBottomTabBarHeight();
@@ -127,10 +132,28 @@ export default function ChallengesScreen({ navigation }: any) {
   }, []);
 
   useEffect(() => {
+    Audio.setAudioModeAsync({
+      allowsRecordingIOS: false,
+      playsInSilentModeIOS: true,
+      shouldDuckAndroid: true
+    }).catch(() => undefined);
+  }, []);
+
+  useEffect(() => {
     if (!activeId && challenges.length > 0) {
       setActiveId(challenges[0].id);
     }
   }, [activeId, challenges]);
+
+  useFocusEffect(
+    useCallback(() => {
+      // Resume auto-play when screen is focused
+      return () => {
+        // Pause video when screen loses focus (navigating away)
+        setActiveId(null);
+      };
+    }, [])
+  );
 
   const onViewableItemsChanged = useRef(({ viewableItems }: { viewableItems: Array<{ item: Challenge }> }) => {
     if (!viewableItems?.length) {
@@ -175,109 +198,52 @@ export default function ChallengesScreen({ navigation }: any) {
           renderItem={({ item }) => {
             const isActive = activeId === item.id;
             const answerCount = item._count?.submissions ?? 0;
-            const viewCount = item._count?.submissions ?? 0;
             const teacherName = item.teacher?.teacherProfile?.displayName || item.teacher?.name || "Teacher";
-            const teacherAvatar = item.teacher?.teacherProfile?.avatarUrl;
             return (
-              <View style={{ height: itemHeight, backgroundColor: "#0b1220" }}>
+              <View style={[localStyles.itemWrap, { height: itemHeight }]}>
                 <Video
                   source={{ uri: item.sourceVideoUrl }}
-                  style={{ width: "100%", height: "100%" }}
+                  style={localStyles.video}
                   resizeMode={ResizeMode.COVER}
                   isLooping
                   shouldPlay={isActive}
-                  isMuted
+                  isMuted={isMuted}
                 />
 
-                <View
-                  style={{
-                    position: "absolute",
-                    left: 0,
-                    right: 0,
-                    top: 0,
-                    paddingHorizontal: 16,
-                    paddingTop: 14,
-                    paddingBottom: 8,
-                    backgroundColor: "rgba(15, 23, 42, 0.35)"
-                  }}
-                >
-                  <Text style={{ color: "#f8fafc", fontSize: 12, fontWeight: "800", letterSpacing: 0.4, textTransform: "uppercase" }}>
+                <View style={localStyles.topBadgeWrap}>
+                  <Text style={localStyles.topBadgeText}>
                     Practice Zone
                   </Text>
                 </View>
 
-                <View
-                  style={{
-                    position: "absolute",
-                    left: 0,
-                    right: 0,
-                    bottom: 0,
-                    paddingHorizontal: 16,
-                    paddingTop: 20,
-                    paddingBottom: tabBarHeight + 18,
-                    backgroundColor: "rgba(15, 23, 42, 0.55)"
-                  }}
-                >
+                <View style={[localStyles.bottomFade]} />
+
+                <Pressable onPress={() => nav.navigate("ChallengeDetail", { id: item.id })} style={[localStyles.infoOverlay, { bottom: 0 }]}>
+                  <Text style={localStyles.challengeTitle} numberOfLines={2}>{item.title}</Text>
                   {item.teacher?.id ? (
                     <Pressable
                       onPress={() => nav.navigate("TeacherDetail", { teacherId: item.teacher?.id })}
-                      style={{ flexDirection: "row", alignItems: "center", gap: 10, marginBottom: 12 }}
+                      style={localStyles.compactMetaRow}
                     >
-                      {teacherAvatar ? (
-                        <Image
-                          source={{ uri: teacherAvatar }}
-                          style={{ width: 44, height: 44, borderRadius: 22, backgroundColor: "#cbd5e1" }}
-                        />
-                      ) : (
-                        <View
-                          style={{
-                            width: 44,
-                            height: 44,
-                            borderRadius: 22,
-                            backgroundColor: "rgba(14, 165, 233, 0.95)",
-                            alignItems: "center",
-                            justifyContent: "center"
-                          }}
-                        >
-                          <Text style={{ color: "#ffffff", fontWeight: "800", fontSize: 16 }}>{getInitials(teacherName)}</Text>
-                        </View>
-                      )}
-                      <View style={{ flex: 1 }}>
-                        <Text style={{ color: "#f8fafc", fontSize: 15, fontWeight: "800" }}>{teacherName}</Text>
-                        <Text style={{ color: "#bae6fd", fontSize: 12, fontWeight: "600" }} numberOfLines={1}>
-                          {item.teacher?.teacherProfile?.headline || "Open teacher profile"}
-                        </Text>
-                      </View>
+                      <Text style={localStyles.compactMetaText} numberOfLines={1}>
+                        @{teacherName} • {formatTimeAgo(item.createdAt)} • {answerCount} answers
+                      </Text>
                     </Pressable>
-                  ) : null}
-                  <Text style={{ color: "#f8fafc", fontSize: 20, fontWeight: "800" }}>{item.title}</Text>
-                  <Text style={{ color: "#cbd5e1", fontSize: 14, marginTop: 6 }} numberOfLines={2}>
-                    {item.description ?? "Teacher challenge"}
-                  </Text>
-                  <Text style={{ color: "#e2e8f0", fontSize: 13, marginTop: 8, fontWeight: "600" }}>
-                    By {teacherName} • {formatTimeAgo(item.createdAt)}
-                  </Text>
-                  <Text style={{ color: "#bae6fd", fontSize: 13, marginTop: 4, fontWeight: "700" }}>
-                    {viewCount} views • {answerCount} answers
-                  </Text>
+                  ) : (
+                    <Text style={localStyles.compactMetaText} numberOfLines={1}>
+                      @{teacherName} • {formatTimeAgo(item.createdAt)} • {answerCount} answers
+                    </Text>
+                  )}
+                </Pressable>
 
+                <View style={[localStyles.actionRail, { top: insets.top + 12 }]}>
                   <Pressable
-                    onPress={() => nav.navigate("ChallengeDetail", { id: item.id })}
-                    style={{
-                      marginTop: 14,
-                      alignSelf: "flex-start",
-                      backgroundColor: "#0369a1",
-                      borderRadius: 999,
-                      paddingHorizontal: 16,
-                      paddingVertical: 10
-                    }}
+                    onPress={() => setIsMuted((prev) => !prev)}
+                    style={localStyles.railButton}
                   >
-                    <Text style={{ color: "#ffffff", fontSize: 14, fontWeight: "800" }}>Answer This Challenge</Text>
+                    <Ionicons name={isMuted ? "volume-mute" : "volume-high"} size={20} color="#ffffff" />
                   </Pressable>
 
-                  <Text style={{ color: "#93c5fd", fontSize: 12, marginTop: 10, fontWeight: "700" }}>
-                    {isActive ? "Playing" : "Paused"} • Swipe up/down for next video
-                  </Text>
                 </View>
               </View>
             );
@@ -294,4 +260,74 @@ export default function ChallengesScreen({ navigation }: any) {
     </View>
   );
 }
+
+const localStyles = StyleSheet.create({
+  itemWrap: {
+    backgroundColor: "#0b1220"
+  },
+  video: {
+    width: "100%",
+    height: "100%"
+  },
+  topBadgeWrap: {
+    position: "absolute",
+    left: 12,
+    top: 14,
+    backgroundColor: "rgba(15, 23, 42, 0.45)",
+    borderRadius: 999,
+    paddingHorizontal: 10,
+    paddingVertical: 5
+  },
+  topBadgeText: {
+    color: "#f8fafc",
+    fontSize: 11,
+    fontWeight: "800",
+    letterSpacing: 0.4,
+    textTransform: "uppercase"
+  },
+  bottomFade: {
+    position: "absolute",
+    left: 0,
+    right: 0,
+    bottom: 0,
+    height: 80,
+    backgroundColor: "rgba(15, 23, 42, 0.45)"
+  },
+  infoOverlay: {
+    position: "absolute",
+    left: 14,
+    right: 80,
+    gap: 2,
+    height: 80, alignItems: "flex-start", justifyContent: 'center'
+  },
+  compactMetaRow: {
+    alignSelf: "flex-start"
+  },
+  compactMetaText: {
+    color: "#bae6fd",
+    fontSize: 11,
+    fontWeight: "700"
+  },
+  challengeTitle: {
+    color: "#f8fafc",
+    fontSize: 16,
+    fontWeight: "800"
+  },
+  actionRail: {
+    position: "absolute",
+    right: 14,
+    alignItems: "center",
+    gap: 10
+  },
+  railButton: {
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+    backgroundColor: "rgba(15, 23, 42, 0.55)",
+    alignItems: "center",
+    justifyContent: "center",
+    borderWidth: 1,
+    borderColor: "rgba(203, 213, 225, 0.35)"
+  }
+});
 
