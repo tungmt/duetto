@@ -6,6 +6,8 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { api } from "../../src/api";
 import nav from "../../src/navigation";
 import { styles } from "../../src/styles";
+import { ExportManager } from "../../src/export-manager";
+import { DuetVideoComposer } from "../../src/duet-video-composer";
 
 type AnswerPeriod = { startMs: number; endMs: number };
 
@@ -71,6 +73,9 @@ export default function ChallengeDetailScreen({ navigation, route }: any) {
   const cameraRef = useRef<CameraView | null>(null);
   const [studentVideoUri, setStudentVideoUri] = useState<string | null>(null);
   const [cameraPermission, setCameraPermission] = useState<boolean | null>(null);
+  const [cameraVideoUri, setCameraVideoUri] = useState<string | null>(null);
+  const [isComposingVideo, setIsComposingVideo] = useState(false);
+  const [composedVideoUri, setComposedVideoUri] = useState<string | null>(null);
 
   const hasPeriods = (challenge?.answerPeriods?.length ?? 0) > 0;
 
@@ -156,13 +161,58 @@ export default function ChallengeDetailScreen({ navigation, route }: any) {
       isOrchestratingRef.current = true;
       try {
         await stopPeriodRecording();
+        
+        // Stop camera recording
+        if (cameraRef.current?.stopRecording) {
+          try {
+            await cameraRef.current.stopRecording();
+          } catch (error) {
+            console.error("Error stopping camera recording:", error);
+          }
+        }
+
         currentPeriodIndexRef.current = periods.length;
         setCurrentPeriodIndex(periods.length);
         orchestrateStateRef.current = "done";
         setOrchestrateState("done");
         recordingArmedRef.current = false;
         setIsRecordingArmed(false);
+
+        // Compose video if both audio and camera recordings exist
+        if (segmentUrisRef.current.length > 0 && cameraVideoUri) {
+          await composeAndExportVideo();
+        }
       } finally { isOrchestratingRef.current = false; }
+    }
+  }
+
+  async function composeAndExportVideo() {
+    try {
+      setIsComposingVideo(true);
+      
+      if (!cameraVideoUri || !challenge?.sourceVideoUrl) {
+        throw new Error("Missing video sources for composition");
+      }
+
+      const exportManager = new ExportManager();
+      const fileName = `duet-${Date.now()}.mp4`;
+
+      const result = await exportManager.exportDuetVideo(
+        cameraVideoUri,
+        challenge.sourceVideoUrl,
+        fileName,
+        (progress) => {
+          console.log(`Export progress: ${progress.stage} - ${progress.progress}%`);
+        }
+      );
+
+      setComposedVideoUri(result.uri);
+      console.log("Video composition successful:", result.uri);
+    } catch (error) {
+      console.error("Error composing video:", error);
+      Alert.alert("Composition Error", `Failed to compose video: ${error}`);
+    } finally {
+      setIsComposingVideo(false);
     }
   }
 
@@ -192,6 +242,30 @@ export default function ChallengeDetailScreen({ navigation, route }: any) {
     setIsRecordingArmed(true);
     // Show placeholder for side-by-side preview
     setStudentVideoUri("placeholder");
+
+    // Start camera video recording
+    try {
+      if (cameraRef.current?.recordAsync) {
+        const cameraRecordingPromise = cameraRef.current.recordAsync({
+          quality: "720p",
+          maxDuration: (challenge?.answerPeriods?.[challenge.answerPeriods.length - 1]?.endMs ?? 0) / 1000
+        });
+
+        // Store the promise to handle when camera records
+        if (cameraRecordingPromise) {
+          cameraRecordingPromise.then((video) => {
+            if (video?.uri) {
+              setCameraVideoUri(video.uri);
+            }
+          }).catch((error) => {
+            console.error("Camera recording error:", error);
+          });
+        }
+      }
+    } catch (error) {
+      console.error("Error starting camera recording:", error);
+    }
+
     await startPeriodRecording();
     await challengeVideoRef.current?.setPositionAsync(0);
     await challengeVideoRef.current?.playAsync();

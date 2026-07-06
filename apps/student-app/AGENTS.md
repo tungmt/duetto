@@ -68,3 +68,6 @@ Use apps/teacher-app/app/dashboard/challenge-detail.tsx as the visual source of 
 - Back button location rule:
 	- For workflow/detail screens, place the back button in the top-left of the custom hero/header row.
 	- Do not place back button below title or as a floating element outside the header row.
+
+## Don't do this
+- Don't use npm, use yarn
