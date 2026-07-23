@@ -74,7 +74,7 @@ export default function RegisterScreen() {
             <Text style={styles.heroSubtitle}>Join as a teacher to create challenges.</Text>
           </View>
 
-          <View style={{ gap: 12 }}>
+          <View style={{ gap: 12, marginHorizontal: 16 }}>
             <View>
               <Text style={[styles.title, { marginBottom: 8 }]}>Full Name</Text>
               <TextInput
@@ -169,7 +169,7 @@ export default function RegisterScreen() {
             </Pressable>
           </View>
 
-          <View style={{ marginTop: 24 }}>
+          <View style={{ marginTop: 24, marginHorizontal: 16 }}>
             <Pressable onPress={() => navigation.navigate("Login")}>
               <Text style={styles.link}>Already have an account? Sign in</Text>
             </Pressable>

@@ -103,7 +103,7 @@ export default function ResetPasswordScreen() {
             </Text>
           </View>
 
-          <View style={{ gap: 12 }}>
+          <View style={{ gap: 12, marginHorizontal: 16 }}>
             {step === "request" ? (
               <>
                 <View>
