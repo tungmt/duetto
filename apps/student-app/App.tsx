@@ -4,21 +4,21 @@ import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 import { ActivityIndicator, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import { getSessionUserId } from "../src/session";
-import { isReadyRef, navigationRef } from "../src/navigation";
+import { getSessionUserId } from "./src/actions/session";
+import { isReadyRef, navigationRef } from "./src/actions/navigation";
 
 // Import screens from their locations
-import LoginScreen from "./login";
-import RegisterScreen from "./register";
-import VerificationScreen from "./verification";
-import ResetPasswordScreen from "./reset-password";
-import UpdateProfileScreen from "./update-profile";
-import ChallengesScreen from "./dashboard/challenges";
-import ChallengeDetailScreen from "./dashboard/challenge-detail";
-import SubmissionsScreen from "./dashboard/submissions";
-import SubmissionDetailScreen from "./dashboard/submission-detail";
-import ProfileScreen from "./dashboard/profile";
-import TeacherDetailScreen from "./dashboard/teacher-detail";
+import LoginScreen from "./src/app/login";
+import RegisterScreen from "./src/app/register";
+import VerificationScreen from "./src/app/verification";
+import ResetPasswordScreen from "./src/app/reset-password";
+import UpdateProfileScreen from "./src/app/update-profile";
+import ChallengesScreen from "./src/app/dashboard/challenges";
+import ChallengeDetailScreen from "./src/app/dashboard/challenge-detail";
+import SubmissionsScreen from "./src/app/dashboard/submissions";
+import SubmissionDetailScreen from "./src/app/dashboard/submission-detail";
+import ProfileScreen from "./src/app/dashboard/profile";
+import TeacherDetailScreen from "./src/app/dashboard/teacher-detail";
 
 const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();

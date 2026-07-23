@@ -1,8 +1,8 @@
 import { useEffect, useState } from "react";
 import { FlatList, Pressable, ScrollView, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { api } from "../../src/api";
-import { styles } from "../../src/styles";
+import { api } from "../../actions/api";
+import { styles } from "../../actions/styles";
 
 type Answer = {
   id: string;

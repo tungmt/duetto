@@ -2,8 +2,8 @@ import { useState } from "react";
 import { Alert, KeyboardAvoidingView, Platform, Pressable, ScrollView, Text, TextInput, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { api } from "../src/api";
-import { styles } from "../src/styles";
+import { api } from "../actions/api";
+import { styles } from "../actions/styles";
 
 export default function RegisterScreen({ navigation }: any) {
   const insets = useSafeAreaInsets();
@@ -65,7 +65,7 @@ export default function RegisterScreen({ navigation }: any) {
             <Text style={styles.heroSubtitle}>Join as a student to get started.</Text>
           </View>
 
-          <View style={{ gap: 12 }}>
+          <View style={{ gap: 12, marginHorizontal: 16 }}>
             <View>
               <Text style={[styles.title, { marginBottom: 8 }]}>Full Name</Text>
               <TextInput
@@ -160,7 +160,7 @@ export default function RegisterScreen({ navigation }: any) {
             </Pressable>
           </View>
 
-          <View style={{ marginTop: 24 }}>
+          <View style={{ marginTop: 24, marginHorizontal: 16 }}>
             <Pressable onPress={() => navigation.navigate("Login")}>
               <Text style={styles.link}>Already have an account? Sign in</Text>
             </Pressable>

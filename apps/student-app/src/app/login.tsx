@@ -2,10 +2,10 @@ import { useState } from "react";
 import { Alert, KeyboardAvoidingView, Platform, Pressable, ScrollView, Text, TextInput, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { api } from "../src/api";
-import nav from "../src/navigation";
-import { saveSession } from "../src/session";
-import { styles } from "../src/styles";
+import { api } from "../actions/api";
+import nav from "../actions/navigation";
+import { saveSession } from "../actions/session";
+import { styles } from "../actions/styles";
 
 export default function LoginScreen({ navigation }: any) {
   const insets = useSafeAreaInsets();
@@ -61,7 +61,7 @@ export default function LoginScreen({ navigation }: any) {
             <Text style={styles.heroSubtitle}>Sign in to your student account.</Text>
           </View>
 
-          <View style={{ gap: 12 }}>
+          <View style={{ gap: 12, marginHorizontal: 16 }}>
             <View>
               <Text style={[styles.title, { marginBottom: 8 }]}>Email</Text>
               <TextInput
@@ -116,7 +116,7 @@ export default function LoginScreen({ navigation }: any) {
             </Pressable>
           </View>
 
-          <View style={{ marginTop: 24, gap: 12 }}>
+          <View style={{ marginTop: 24, gap: 12, marginHorizontal: 16 }}>
             <Pressable onPress={() => navigation.navigate("Register")} style={styles.buttonSecondary}>
               <Text style={styles.buttonSecondaryText}>Create a new account</Text>
             </Pressable>

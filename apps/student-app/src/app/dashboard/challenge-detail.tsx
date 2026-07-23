@@ -1,13 +1,14 @@
 import { useEffect, useRef, useState } from "react";
-import { Audio, AVPlaybackStatusSuccess, ResizeMode, Video } from "expo-av";
+import { useEventListener } from "expo";
+import { createAudioPlayer, RecordingPresets, requestRecordingPermissionsAsync, setAudioModeAsync, useAudioRecorder } from "expo-audio";
 import { Camera, CameraView } from "expo-camera";
+import { VideoView, useVideoPlayer } from "expo-video";
 import { Alert, Image, KeyboardAvoidingView, LayoutChangeEvent, Platform, Pressable, ScrollView, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { api } from "../../src/api";
-import nav from "../../src/navigation";
-import { styles } from "../../src/styles";
-import { ExportManager } from "../../src/export-manager";
-import { DuetVideoComposer } from "../../src/duet-video-composer";
+import { api } from "../../actions/api";
+import nav from "../../actions/navigation";
+import { styles } from "../../actions/styles";
+import { ExportManager } from "../../actions/export-manager";
 
 type AnswerPeriod = { startMs: number; endMs: number };
 
@@ -30,7 +31,6 @@ type Challenge = {
   } | null;
 };
 
-// idle: playing, mic off  |  duetting: camera ready, not recording yet  |  recording: mic on, video muted  |  done: all periods captured
 type OrchestrateState = "idle" | "duetting" | "recording" | "done";
 
 function getInitials(name: string) {
@@ -46,20 +46,16 @@ export default function ChallengeDetailScreen({ navigation, route }: any) {
   const [loading, setLoading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState<number | null>(null);
 
-  // Orchestration (refs avoid re-render races in onPlaybackStatusUpdate)
-  const challengeVideoRef = useRef<Video | null>(null);
+  const challengeRef = useRef<Challenge | null>(null);
+  const cameraVideoUriRef = useRef<string | null>(null);
   const orchestrateStateRef = useRef<OrchestrateState>("idle");
-  const recordingRef = useRef<Audio.Recording | null>(null);
   const segmentUrisRef = useRef<string[]>([]);
   const currentPeriodIndexRef = useRef(0);
   const isOrchestratingRef = useRef(false);
   const recordingArmedRef = useRef(false);
-
-  // Preview sync refs
-  const previewSoundRef = useRef<Audio.Sound | null>(null);
+  const previewSoundRef = useRef<ReturnType<typeof createAudioPlayer> | null>(null);
   const previewSyncBusyRef = useRef(false);
 
-  // UI state derived from orchestration
   const [orchestrateState, setOrchestrateState] = useState<OrchestrateState>("idle");
   const [currentPeriodIndex, setCurrentPeriodIndex] = useState(0);
   const [segmentCount, setSegmentCount] = useState(0);
@@ -77,16 +73,42 @@ export default function ChallengeDetailScreen({ navigation, route }: any) {
   const [isComposingVideo, setIsComposingVideo] = useState(false);
   const [composedVideoUri, setComposedVideoUri] = useState<string | null>(null);
 
+  const audioRecorder = useAudioRecorder(RecordingPresets.HIGH_QUALITY);
+  const challengeSource = challenge?.sourceVideoUrl ?? null;
+  const previewStudentUri = composedVideoUri || studentVideoUri;
   const hasPeriods = (challenge?.answerPeriods?.length ?? 0) > 0;
+
+  const challengeVideoPlayer = useVideoPlayer(challengeSource, (player) => {
+    player.timeUpdateEventInterval = 0.1;
+    player.audioMixingMode = "auto";
+  });
+
+  const previewChallengePlayer = useVideoPlayer(orchestrateState === "done" ? challengeSource : null, (player) => {
+    player.muted = true;
+  });
+
+  const studentPreviewPlayer = useVideoPlayer(orchestrateState === "done" ? previewStudentUri : null, (player) => {
+    player.muted = true;
+  });
+
+  useEffect(() => {
+    challengeRef.current = challenge;
+  }, [challenge]);
+
+  useEffect(() => {
+    cameraVideoUriRef.current = cameraVideoUri;
+  }, [cameraVideoUri]);
 
   useEffect(() => {
     api(`/api/videos/${id}`).then((data) => {
-      const c = data.challenge ?? null;
-      if (c && !Array.isArray(c.answerPeriods)) c.answerPeriods = [];
-      setChallenge(c);
+      const nextChallenge = data.challenge ?? null;
+      if (nextChallenge && !Array.isArray(nextChallenge.answerPeriods)) nextChallenge.answerPeriods = [];
+      setChallenge(nextChallenge);
     });
+
     return () => {
-      previewSoundRef.current?.unloadAsync().catch(() => undefined);
+      previewSoundRef.current?.remove();
+      previewSoundRef.current = null;
     };
   }, [id]);
 
@@ -96,6 +118,45 @@ export default function ChallengeDetailScreen({ navigation, route }: any) {
       setCameraPermission(cameraPerm.granted);
     })();
   }, []);
+
+  useEventListener(challengeVideoPlayer, "sourceLoad", ({ duration }) => {
+    setVideoDurationMs(Math.round(duration * 1000));
+  });
+
+  useEventListener(challengeVideoPlayer, "timeUpdate", ({ currentTime }) => {
+    const positionMs = Math.round(currentTime * 1000);
+    const durationMs = Math.round(challengeVideoPlayer.duration * 1000);
+    setVideoPositionMs(positionMs);
+    setVideoDurationMs(durationMs);
+
+    if (orchestrateStateRef.current === "done") {
+      void syncPreviewToVideo(positionMs, challengeVideoPlayer.playing, false);
+      return;
+    }
+
+    if ((challengeRef.current?.answerPeriods?.length ?? 0) > 0) {
+      void onVideoPositionUpdate(positionMs, false);
+    }
+  });
+
+  useEventListener(challengeVideoPlayer, "playingChange", ({ isPlaying }) => {
+    if (orchestrateStateRef.current === "done") {
+      void syncPreviewToVideo(Math.round(challengeVideoPlayer.currentTime * 1000), isPlaying, false);
+    }
+  });
+
+  useEventListener(challengeVideoPlayer, "playToEnd", () => {
+    const endMs = Math.round(challengeVideoPlayer.duration * 1000);
+    setVideoPositionMs(endMs);
+
+    if ((challengeRef.current?.answerPeriods?.length ?? 0) > 0) {
+      void onVideoPositionUpdate(endMs, true);
+    }
+
+    if (orchestrateStateRef.current === "done") {
+      void syncPreviewToVideo(endMs, false, true);
+    }
+  });
 
   async function startDuetting() {
     const cameraPerm = await Camera.requestCameraPermissionsAsync();
@@ -111,58 +172,63 @@ export default function ChallengeDetailScreen({ navigation, route }: any) {
     setOrchestrateState("idle");
   }
 
-  // ── Orchestration engine ─────────────────────────────────────────────────
-
   async function startPeriodRecording() {
-    await Audio.requestPermissionsAsync();
-    await challengeVideoRef.current?.setIsMutedAsync(true);
+    const permission = await requestRecordingPermissionsAsync();
+    if (!permission.granted) {
+      Alert.alert("Microphone Permission Required", "Please enable microphone access in Settings to record your answer.");
+      return false;
+    }
+
+    challengeVideoPlayer.muted = true;
     setIsMuted(true);
-    await Audio.setAudioModeAsync({ allowsRecordingIOS: true, playsInSilentModeIOS: true });
-    const { recording } = await Audio.Recording.createAsync(Audio.RecordingOptionsPresets.HIGH_QUALITY);
-    recordingRef.current = recording;
+    await setAudioModeAsync({ allowsRecording: true, playsInSilentMode: true });
+    await audioRecorder.prepareToRecordAsync();
+    audioRecorder.record();
     orchestrateStateRef.current = "recording";
     setOrchestrateState("recording");
+    return true;
   }
 
   async function stopPeriodRecording() {
-    const recording = recordingRef.current;
-    if (!recording) return;
-    await recording.stopAndUnloadAsync();
-    const uri = recording.getURI() ?? "";
-    recordingRef.current = null;
+    try {
+      await audioRecorder.stop();
+    } catch {
+      return;
+    }
+
+    const uri = audioRecorder.uri ?? "";
     if (uri) {
       segmentUrisRef.current = [...segmentUrisRef.current, uri];
       setSegmentCount(segmentUrisRef.current.length);
     }
-    await Audio.setAudioModeAsync({ allowsRecordingIOS: false, playsInSilentModeIOS: true });
-    await challengeVideoRef.current?.setIsMutedAsync(false);
+
+    await setAudioModeAsync({ allowsRecording: false, playsInSilentMode: true });
+    challengeVideoPlayer.muted = false;
     setIsMuted(false);
   }
 
-  async function onVideoPositionUpdate(status: AVPlaybackStatusSuccess) {
+  async function onVideoPositionUpdate(positionMs: number, didJustFinish: boolean) {
     if (isOrchestratingRef.current) return;
     if (!recordingArmedRef.current) return;
-    const periods = challenge?.answerPeriods ?? [];
+
+    const periods = challengeRef.current?.answerPeriods ?? [];
     if (periods.length === 0) return;
-    const pos = status.positionMillis ?? 0;
+
     const state = orchestrateStateRef.current;
     if (state === "done") return;
 
-    // Keep period progress in sync for UI while recording a single full-length track.
-    const nextIndex = periods.findIndex((p) => pos < p.endMs);
+    const nextIndex = periods.findIndex((period) => positionMs < period.endMs);
     const normalizedIndex = nextIndex === -1 ? periods.length : nextIndex;
     if (normalizedIndex !== currentPeriodIndexRef.current) {
       currentPeriodIndexRef.current = normalizedIndex;
       setCurrentPeriodIndex(normalizedIndex);
     }
 
-    // Finalize recording only when the full video finishes.
-    if (state === "recording" && status.didJustFinish) {
+    if (state === "recording" && didJustFinish) {
       isOrchestratingRef.current = true;
       try {
         await stopPeriodRecording();
-        
-        // Stop camera recording
+
         if (cameraRef.current?.stopRecording) {
           try {
             await cameraRef.current.stopRecording();
@@ -178,19 +244,20 @@ export default function ChallengeDetailScreen({ navigation, route }: any) {
         recordingArmedRef.current = false;
         setIsRecordingArmed(false);
 
-        // Compose video if both audio and camera recordings exist
-        if (segmentUrisRef.current.length > 0 && cameraVideoUri) {
+        if (segmentUrisRef.current.length > 0 && cameraVideoUriRef.current) {
           await composeAndExportVideo();
         }
-      } finally { isOrchestratingRef.current = false; }
+      } finally {
+        isOrchestratingRef.current = false;
+      }
     }
   }
 
   async function composeAndExportVideo() {
     try {
       setIsComposingVideo(true);
-      
-      if (!cameraVideoUri || !challenge?.sourceVideoUrl) {
+
+      if (!cameraVideoUriRef.current || !challengeRef.current?.sourceVideoUrl) {
         throw new Error("Missing video sources for composition");
       }
 
@@ -198,8 +265,8 @@ export default function ChallengeDetailScreen({ navigation, route }: any) {
       const fileName = `duet-${Date.now()}.mp4`;
 
       const result = await exportManager.exportDuetVideo(
-        cameraVideoUri,
-        challenge.sourceVideoUrl,
+        cameraVideoUriRef.current,
+        challengeRef.current.sourceVideoUrl,
         fileName,
         (progress) => {
           console.log(`Export progress: ${progress.stage} - ${progress.progress}%`);
@@ -217,8 +284,7 @@ export default function ChallengeDetailScreen({ navigation, route }: any) {
   }
 
   function resetOrchestration() {
-    recordingRef.current?.stopAndUnloadAsync().catch(() => undefined);
-    recordingRef.current = null;
+    void audioRecorder.stop().catch(() => undefined);
     segmentUrisRef.current = [];
     currentPeriodIndexRef.current = 0;
     orchestrateStateRef.current = "idle";
@@ -229,9 +295,13 @@ export default function ChallengeDetailScreen({ navigation, route }: any) {
     recordingArmedRef.current = false;
     setIsRecordingArmed(false);
     setStudentVideoUri(null);
-    challengeVideoRef.current?.setIsMutedAsync(false).catch(() => undefined);
-    challengeVideoRef.current?.setPositionAsync(0).catch(() => undefined);
-    previewSoundRef.current?.unloadAsync().catch(() => undefined);
+    setCameraVideoUri(null);
+    setComposedVideoUri(null);
+    challengeVideoPlayer.pause();
+    challengeVideoPlayer.muted = false;
+    challengeVideoPlayer.currentTime = 0;
+    void setAudioModeAsync({ allowsRecording: false, playsInSilentMode: true }).catch(() => undefined);
+    previewSoundRef.current?.remove();
     previewSoundRef.current = null;
     setPreviewReady(false);
   }
@@ -240,22 +310,18 @@ export default function ChallengeDetailScreen({ navigation, route }: any) {
     resetOrchestration();
     recordingArmedRef.current = true;
     setIsRecordingArmed(true);
-    // Show placeholder for side-by-side preview
-    setStudentVideoUri("placeholder");
 
-    // Start camera video recording
     try {
       if (cameraRef.current?.recordAsync) {
         const cameraRecordingPromise = cameraRef.current.recordAsync({
-          quality: "720p",
-          maxDuration: (challenge?.answerPeriods?.[challenge.answerPeriods.length - 1]?.endMs ?? 0) / 1000
+          maxDuration: (challengeRef.current?.answerPeriods?.[challengeRef.current.answerPeriods.length - 1]?.endMs ?? 0) / 1000
         });
 
-        // Store the promise to handle when camera records
         if (cameraRecordingPromise) {
           cameraRecordingPromise.then((video) => {
             if (video?.uri) {
               setCameraVideoUri(video.uri);
+              setStudentVideoUri(video.uri);
             }
           }).catch((error) => {
             console.error("Camera recording error:", error);
@@ -266,24 +332,28 @@ export default function ChallengeDetailScreen({ navigation, route }: any) {
       console.error("Error starting camera recording:", error);
     }
 
-    await startPeriodRecording();
-    await challengeVideoRef.current?.setPositionAsync(0);
-    await challengeVideoRef.current?.playAsync();
+    const didStart = await startPeriodRecording();
+    if (!didStart) {
+      recordingArmedRef.current = false;
+      setIsRecordingArmed(false);
+      return;
+    }
+
+    challengeVideoPlayer.currentTime = 0;
+    challengeVideoPlayer.play();
   }
 
   async function cancelAutoRecording() {
     resetOrchestration();
-    await challengeVideoRef.current?.pauseAsync();
+    challengeVideoPlayer.pause();
   }
 
-  // ── Custom video tracker ─────────────────────────────────────────────────
-
   async function seekTo(targetMs: number) {
-    if (!challengeVideoRef.current || videoDurationMs <= 0) {
+    if (videoDurationMs <= 0) {
       return;
     }
     const next = Math.max(0, Math.min(targetMs, videoDurationMs));
-    await challengeVideoRef.current.setPositionAsync(next);
+    challengeVideoPlayer.currentTime = next / 1000;
   }
 
   async function onTimelinePress(event: any) {
@@ -300,25 +370,26 @@ export default function ChallengeDetailScreen({ navigation, route }: any) {
     setTimelineWidth(event.nativeEvent.layout.width);
   }
 
-  // ── Preview: answer audio synced to video replay ─────────────────────────
-
-  async function syncPreviewToVideo(status: AVPlaybackStatusSuccess) {
+  async function syncPreviewToVideo(positionMs: number, isPlaying: boolean, didJustFinish: boolean) {
     const sound = previewSoundRef.current;
     if (!sound || previewSyncBusyRef.current) return;
+
     previewSyncBusyRef.current = true;
     try {
-      const ss = await sound.getStatusAsync();
-      if (!ss.isLoaded) return;
-      const drift = Math.abs((ss.positionMillis ?? 0) - (status.positionMillis ?? 0));
-      if (drift > 250) await sound.setPositionAsync(status.positionMillis ?? 0);
-      if (status.didJustFinish) {
-        if (ss.isPlaying) await sound.pauseAsync();
-        await sound.setPositionAsync(0);
+      const drift = Math.abs(Math.round(sound.currentTime * 1000) - positionMs);
+      if (drift > 250) {
+        await sound.seekTo(positionMs / 1000);
+      }
+      if (didJustFinish) {
+        sound.pause();
+        await sound.seekTo(0);
         return;
       }
-      if (status.isPlaying && !ss.isPlaying) await sound.playAsync();
-      else if (!status.isPlaying && ss.isPlaying) await sound.pauseAsync();
-    } catch { /* ignore single-frame errors */ } finally { previewSyncBusyRef.current = false; }
+      if (isPlaying && !sound.playing) sound.play();
+      else if (!isPlaying && sound.playing) sound.pause();
+    } finally {
+      previewSyncBusyRef.current = false;
+    }
   }
 
   async function ensurePreviewAudioReady() {
@@ -331,10 +402,8 @@ export default function ChallengeDetailScreen({ navigation, route }: any) {
 
     setPreviewLoading(true);
     try {
-      const { sound } = await Audio.Sound.createAsync(
-        { uri: segmentUrisRef.current[0] },
-        { shouldPlay: false, positionMillis: 0 }
-      );
+      const sound = createAudioPlayer({ uri: segmentUrisRef.current[0] }, { keepAudioSessionActive: true });
+      await sound.seekTo(0);
       previewSoundRef.current = sound;
       setPreviewReady(true);
       return sound;
@@ -353,13 +422,11 @@ export default function ChallengeDetailScreen({ navigation, route }: any) {
       return;
     }
 
-    await sound.setPositionAsync(0);
-    await challengeVideoRef.current?.setPositionAsync(0);
-    await challengeVideoRef.current?.playAsync();
-    await sound.playAsync();
+    await sound.seekTo(0);
+    challengeVideoPlayer.currentTime = 0;
+    challengeVideoPlayer.play();
+    sound.play();
   }
-
-  // ── Upload & Submit ───────────────────────────────────────────────────────
 
   function fileNameFromUri(uri: string) {
     const parts = uri.split("/");
@@ -372,8 +439,17 @@ export default function ChallengeDetailScreen({ navigation, route }: any) {
       const xhr = new XMLHttpRequest();
       xhr.open("PUT", uploadUrl);
       xhr.setRequestHeader("Content-Type", contentType);
-      xhr.upload.onprogress = (e) => { if (e.lengthComputable && e.total > 0) onProgress(e.loaded / e.total); };
-      xhr.onload = () => { if (xhr.status >= 200 && xhr.status < 300) { onProgress(1); resolve(); } else reject(new Error(`Upload failed (${xhr.status})`)); };
+      xhr.upload.onprogress = (event) => {
+        if (event.lengthComputable && event.total > 0) onProgress(event.loaded / event.total);
+      };
+      xhr.onload = () => {
+        if (xhr.status >= 200 && xhr.status < 300) {
+          onProgress(1);
+          resolve();
+        } else {
+          reject(new Error(`Upload failed (${xhr.status})`));
+        }
+      };
       xhr.onerror = () => reject(new Error("Upload failed due to network error."));
       xhr.send(blob as any);
     });
@@ -391,13 +467,13 @@ export default function ChallengeDetailScreen({ navigation, route }: any) {
       const contentType = "audio/mp4";
       const segmentUrls: string[] = [];
       const step = 1 / segments.length;
-      for (let i = 0; i < segments.length; i++) {
+      for (let index = 0; index < segments.length; index++) {
         const uploadData = await api("/api/submissions/upload-url", {
           method: "POST",
-          body: JSON.stringify({ fileName: fileNameFromUri(segments[i]), contentType, fileType: "answer" })
+          body: JSON.stringify({ fileName: fileNameFromUri(segments[index]), contentType, fileType: "answer" })
         });
-        await uploadWithProgress(segments[i], uploadData.uploadUrl, contentType, (p) => {
-          setUploadProgress(i * step + p * step);
+        await uploadWithProgress(segments[index], uploadData.uploadUrl, contentType, (progress) => {
+          setUploadProgress(index * step + progress * step);
         });
         segmentUrls.push(uploadData.publicUrl);
       }
@@ -425,8 +501,6 @@ export default function ChallengeDetailScreen({ navigation, route }: any) {
     }
   }
 
-  // ── Helpers ───────────────────────────────────────────────────────────────
-
   function formatMs(ms: number) {
     const s = Math.floor(ms / 1000);
     return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
@@ -436,13 +510,13 @@ export default function ChallengeDetailScreen({ navigation, route }: any) {
     const periods = challenge?.answerPeriods ?? [];
     if (orchestrateState === "done") return "All answer periods recorded ✓";
     if (orchestrateState === "recording") {
-      return `🎙 Recording in progress. Speak during the highlighted answer periods.`;
+      return "🎙 Recording in progress. Speak during the highlighted answer periods.";
     }
     if (!isRecordingArmed) {
       return "Press Record Your Answer to restart from the beginning and auto-record answer periods.";
     }
-    const p = periods[currentPeriodIndex];
-    return `▶ Recording armed — period ${currentPeriodIndex + 1} starts at ${formatMs(p?.startMs ?? 0)}`;
+    const period = periods[currentPeriodIndex];
+    return `▶ Recording armed — period ${currentPeriodIndex + 1} starts at ${formatMs(period?.startMs ?? 0)}`;
   }
 
   const hasDuration = videoDurationMs > 0;
@@ -466,7 +540,6 @@ export default function ChallengeDetailScreen({ navigation, route }: any) {
       <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : "height"} style={{ flex: 1 }}>
         <ScrollView contentContainerStyle={styles.scrollContent}>
           <View style={styles.container}>
-            {/* Header */}
             <View
               style={[
                 styles.heroCard,
@@ -533,9 +606,7 @@ export default function ChallengeDetailScreen({ navigation, route }: any) {
               </Pressable>
             ) : null}
 
-            {/* Video */}
             {orchestrateState === "duetting" || orchestrateState === "recording" ? (
-              /* Side-by-side during duetting/recording: Camera (left) + Challenge Video (right) */
               <View style={{ marginTop: 12, gap: 8 }}>
                 {!cameraPermission ? (
                   <View style={{ backgroundColor: "rgba(239,68,68,0.1)", borderRadius: 12, padding: 12, gap: 8 }}>
@@ -562,7 +633,6 @@ export default function ChallengeDetailScreen({ navigation, route }: any) {
                       backgroundColor: "#000000"
                     }}
                   >
-                    {/* Camera - LEFT */}
                     <View style={{ flex: 1, backgroundColor: "#1e293b", position: "relative" }}>
                       <CameraView ref={cameraRef} style={{ flex: 1 }} facing="front" />
                       <View
@@ -599,23 +669,13 @@ export default function ChallengeDetailScreen({ navigation, route }: any) {
                       </View>
                     </View>
 
-                    {/* Challenge Video - RIGHT */}
                     <View style={{ flex: 1, backgroundColor: "#1e293b", position: "relative" }}>
-                      <Video
-                        ref={(ref) => {
-                          challengeVideoRef.current = ref;
-                        }}
-                        source={{ uri: challenge.sourceVideoUrl }}
+                      <VideoView
+                        player={challengeVideoPlayer}
                         style={{ flex: 1 }}
-                        resizeMode={ResizeMode.COVER}
-                        onPlaybackStatusUpdate={(status) => {
-                          if (!status.isLoaded) return;
-                          setVideoPositionMs(status.positionMillis ?? 0);
-                          setVideoDurationMs(status.durationMillis ?? 0);
-                          if (hasPeriods) {
-                            onVideoPositionUpdate(status as AVPlaybackStatusSuccess);
-                          }
-                        }}
+                        contentFit="cover"
+                        nativeControls={false}
+                        surfaceType="textureView"
                       />
                       <View
                         style={{
@@ -661,26 +721,12 @@ export default function ChallengeDetailScreen({ navigation, route }: any) {
                 ) : null}
               </View>
             ) : (
-              /* Normal view: Full challenge video + timeline */
               <View>
-                <Video
-                  ref={(ref) => {
-                    challengeVideoRef.current = ref;
-                  }}
-                  source={{ uri: challenge.sourceVideoUrl }}
+                <VideoView
+                  player={challengeVideoPlayer}
                   style={styles.videoContainer}
-                  resizeMode={ResizeMode.CONTAIN}
-                  useNativeControls
-                  onPlaybackStatusUpdate={(status) => {
-                    if (!status.isLoaded) return;
-                    setVideoPositionMs(status.positionMillis ?? 0);
-                    setVideoDurationMs(status.durationMillis ?? 0);
-                    if (orchestrateState === "done") {
-                      syncPreviewToVideo(status as AVPlaybackStatusSuccess);
-                    } else if (hasPeriods) {
-                      onVideoPositionUpdate(status as AVPlaybackStatusSuccess);
-                    }
-                  }}
+                  contentFit="contain"
+                  nativeControls
                 />
                 <View style={{ marginTop: 8 }}>
                   <Pressable
@@ -695,86 +741,96 @@ export default function ChallengeDetailScreen({ navigation, route }: any) {
                       position: "relative"
                     }}
                   >
-                  <View
-                    style={{
-                      position: "absolute",
-                      left: 0,
-                      top: 0,
-                      bottom: 0,
-                      width: `${progressPct}%`,
-                      backgroundColor: "#7dd3fc"
-                    }}
-                  />
+                    <View
+                      style={{
+                        position: "absolute",
+                        left: 0,
+                        top: 0,
+                        bottom: 0,
+                        width: `${progressPct}%`,
+                        backgroundColor: "#7dd3fc"
+                      }}
+                    />
 
-                  {hasDuration && challenge.answerPeriods?.length
-                    ? challenge.answerPeriods.map((p, i) => {
-                        const leftPct = (p.startMs / videoDurationMs) * 100;
-                        const widthPct = Math.max(((p.endMs - p.startMs) / videoDurationMs) * 100, 0.75);
-                        return (
-                          <View
-                            key={`${p.startMs}-${p.endMs}-${i}`}
-                            style={{
-                              position: "absolute",
-                              top: 5,
-                              bottom: 5,
-                              borderRadius: 999,
-                              backgroundColor: "rgba(2, 132, 199, 0.35)",
-                              borderWidth: 1,
-                              borderColor: "rgba(2, 132, 199, 0.65)",
-                              left: `${leftPct}%`,
-                              width: `${widthPct}%`
-                            }}
-                          />
-                        );
-                      })
-                    : null}
+                    {hasDuration && challenge.answerPeriods?.length
+                      ? challenge.answerPeriods.map((period, index) => {
+                          const leftPct = (period.startMs / videoDurationMs) * 100;
+                          const widthPct = Math.max(((period.endMs - period.startMs) / videoDurationMs) * 100, 0.75);
+                          return (
+                            <View
+                              key={`${period.startMs}-${period.endMs}-${index}`}
+                              style={{
+                                position: "absolute",
+                                top: 5,
+                                bottom: 5,
+                                borderRadius: 999,
+                                backgroundColor: "rgba(2, 132, 199, 0.35)",
+                                borderWidth: 1,
+                                borderColor: "rgba(2, 132, 199, 0.65)",
+                                left: `${leftPct}%`,
+                                width: `${widthPct}%`
+                              }}
+                            />
+                          );
+                        })
+                      : null}
 
-                  <View
-                    style={{
-                      position: "absolute",
-                      width: 10,
-                      height: 10,
-                      borderRadius: 5,
-                      backgroundColor: "#0369a1",
-                      borderWidth: 1,
-                      borderColor: "#ffffff",
-                      top: 7,
-                      left: thumbLeftPx
-                    }}
-                  />
-                </Pressable>
-                <View style={{ flexDirection: "row", justifyContent: "space-between", marginTop: 6 }}>
-                  <Text style={{ color: "#64748b", fontSize: 12, fontWeight: "700" }}>{formatMs(videoPositionMs)}</Text>
-                  <Text style={{ color: "#64748b", fontSize: 12, fontWeight: "700" }}>{formatMs(videoDurationMs)}</Text>
+                    <View
+                      style={{
+                        position: "absolute",
+                        width: 10,
+                        height: 10,
+                        borderRadius: 5,
+                        backgroundColor: "#0369a1",
+                        borderWidth: 1,
+                        borderColor: "#ffffff",
+                        top: 7,
+                        left: thumbLeftPx
+                      }}
+                    />
+                  </Pressable>
+                  <View style={{ flexDirection: "row", justifyContent: "space-between", marginTop: 6 }}>
+                    <Text style={{ color: "#64748b", fontSize: 12, fontWeight: "700" }}>{formatMs(videoPositionMs)}</Text>
+                    <Text style={{ color: "#64748b", fontSize: 12, fontWeight: "700" }}>{formatMs(videoDurationMs)}</Text>
+                  </View>
                 </View>
-              </View>
-              {isMuted ? (
-                <View style={{ flexDirection: "row", alignItems: "center", gap: 6, marginTop: 6, backgroundColor: "rgba(239,68,68,0.12)", borderRadius: 8, padding: 8 }}>
-                  <Text style={{ fontSize: 16 }}>🔇</Text>
-                  <Text style={{ color: "#ef4444", fontSize: 12, fontWeight: "700", flex: 1 }}>
-                    Video audio muted — microphone is active
-                  </Text>
-                </View>
-              ) : null}
+                {isMuted ? (
+                  <View style={{ flexDirection: "row", alignItems: "center", gap: 6, marginTop: 6, backgroundColor: "rgba(239,68,68,0.12)", borderRadius: 8, padding: 8 }}>
+                    <Text style={{ fontSize: 16 }}>🔇</Text>
+                    <Text style={{ color: "#ef4444", fontSize: 12, fontWeight: "700", flex: 1 }}>
+                      Video audio muted — microphone is active
+                    </Text>
+                  </View>
+                ) : null}
               </View>
             )}
 
-            {/* Orchestrated or manual recording */}
             {hasPeriods ? (
               <View style={{ marginTop: 14, gap: 12 }}>
                 <Text style={styles.sectionTitle}>Auto-Recording</Text>
 
-                {/* Status badge */}
-                <View style={{
-                  borderRadius: 10, padding: 12,
-                  backgroundColor: orchestrateState === "recording" ? "rgba(239,68,68,0.1)"
-                    : orchestrateState === "done" ? "rgba(34,197,94,0.1)" : "#f0f9ff"
-                }}>
-                  <Text style={{
-                    fontWeight: "700", fontSize: 14,
-                    color: orchestrateState === "recording" ? "#ef4444"
-                      : orchestrateState === "done" ? "#16a34a" : "#0369a1"
-                  }}>
+                <View
+                  style={{
+                    borderRadius: 10,
+                    padding: 12,
+                    backgroundColor: orchestrateState === "recording"
+                      ? "rgba(239,68,68,0.1)"
+                      : orchestrateState === "done"
+                        ? "rgba(34,197,94,0.1)"
+                        : "#f0f9ff"
+                  }}
+                >
+                  <Text
+                    style={{
+                      fontWeight: "700",
+                      fontSize: 14,
+                      color: orchestrateState === "recording"
+                        ? "#ef4444"
+                        : orchestrateState === "done"
+                          ? "#16a34a"
+                          : "#0369a1"
+                    }}
+                  >
                     {periodStatusLabel()}
                   </Text>
                 </View>
@@ -809,25 +865,31 @@ export default function ChallengeDetailScreen({ navigation, route }: any) {
                   </Pressable>
                 ) : null}
 
-                {/* Period timeline */}
                 <View style={{ gap: 6 }}>
-                  {challenge.answerPeriods.map((p, i) => {
-                    const isDone = orchestrateState === "done" || i < currentPeriodIndex;
+                  {challenge.answerPeriods.map((period, index) => {
+                    const isDone = orchestrateState === "done" || index < currentPeriodIndex;
                     const isActive =
                       orchestrateState === "recording" &&
-                      i === currentPeriodIndex &&
-                      videoPositionMs >= p.startMs &&
-                      videoPositionMs < p.endMs;
+                      index === currentPeriodIndex &&
+                      videoPositionMs >= period.startMs &&
+                      videoPositionMs < period.endMs;
                     return (
-                      <View key={i} style={{
-                        flexDirection: "row", alignItems: "center", gap: 10,
-                        backgroundColor: isActive ? "rgba(239,68,68,0.08)" : isDone ? "rgba(34,197,94,0.08)" : "#f8fafc",
-                        borderRadius: 10, padding: 10, borderWidth: 1,
-                        borderColor: isActive ? "#ef4444" : isDone ? "#86efac" : "#dbe4ef"
-                      }}>
+                      <View
+                        key={index}
+                        style={{
+                          flexDirection: "row",
+                          alignItems: "center",
+                          gap: 10,
+                          backgroundColor: isActive ? "rgba(239,68,68,0.08)" : isDone ? "rgba(34,197,94,0.08)" : "#f8fafc",
+                          borderRadius: 10,
+                          padding: 10,
+                          borderWidth: 1,
+                          borderColor: isActive ? "#ef4444" : isDone ? "#86efac" : "#dbe4ef"
+                        }}
+                      >
                         <Text style={{ fontSize: 16 }}>{isActive ? "🎙" : isDone ? "✅" : "○"}</Text>
                         <Text style={{ flex: 1, color: "#0f172a", fontWeight: "600", fontSize: 13 }}>
-                          Period {i + 1}: {formatMs(p.startMs)} → {formatMs(p.endMs)}
+                          Period {index + 1}: {formatMs(period.startMs)} → {formatMs(period.endMs)}
                         </Text>
                       </View>
                     );
@@ -841,8 +903,7 @@ export default function ChallengeDetailScreen({ navigation, route }: any) {
                       <Text style={styles.status}>Preview your answer with the challenge below. Then submit.</Text>
                     </View>
 
-                    {/* Side-by-side video preview */}
-                    {studentVideoUri ? (
+                    {previewStudentUri ? (
                       <View style={{ gap: 8 }}>
                         <Text style={styles.sectionTitle}>Your Duet Preview</Text>
                         <View
@@ -855,14 +916,13 @@ export default function ChallengeDetailScreen({ navigation, route }: any) {
                             backgroundColor: "#000000"
                           }}
                         >
-                          {/* Original Challenge */}
                           <View style={{ flex: 1, backgroundColor: "#1e293b", position: "relative" }}>
-                            <Video
-                              source={{ uri: challenge.sourceVideoUrl }}
+                            <VideoView
+                              player={previewChallengePlayer}
                               style={{ flex: 1 }}
-                              resizeMode={ResizeMode.COVER}
-                              shouldPlay={false}
-                              useNativeControls={false}
+                              contentFit="cover"
+                              nativeControls={false}
+                              surfaceType="textureView"
                             />
                             <View
                               style={{
@@ -879,14 +939,13 @@ export default function ChallengeDetailScreen({ navigation, route }: any) {
                             </View>
                           </View>
 
-                          {/* Student Camera */}
                           <View style={{ flex: 1, backgroundColor: "#1e293b", position: "relative" }}>
-                            <Video
-                              source={{ uri: studentVideoUri }}
+                            <VideoView
+                              player={studentPreviewPlayer}
                               style={{ flex: 1 }}
-                              resizeMode={ResizeMode.COVER}
-                              shouldPlay={false}
-                              useNativeControls={false}
+                              contentFit="cover"
+                              nativeControls={false}
+                              surfaceType="textureView"
                             />
                             <View
                               style={{
@@ -907,6 +966,10 @@ export default function ChallengeDetailScreen({ navigation, route }: any) {
                           Your side-by-side video will be generated after you submit
                         </Text>
                       </View>
+                    ) : null}
+
+                    {isComposingVideo ? (
+                      <Text style={styles.status}>Preparing duet preview video...</Text>
                     ) : null}
 
                     <Pressable
@@ -944,7 +1007,6 @@ export default function ChallengeDetailScreen({ navigation, route }: any) {
                 ) : null}
               </View>
             ) : (
-              /* No periods: manual recording fallback */
               <View style={{ marginTop: 14, gap: 12 }}>
                 <Text style={styles.sectionTitle}>Record Your Answer</Text>
                 <Text style={styles.status}>This challenge has no defined answer periods. Record manually below.</Text>
@@ -999,7 +1061,6 @@ export default function ChallengeDetailScreen({ navigation, route }: any) {
                 ) : null}
               </View>
             )}
-
           </View>
         </ScrollView>
       </KeyboardAvoidingView>

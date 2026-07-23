@@ -1,10 +1,10 @@
 import { useState } from "react";
 import { Alert, KeyboardAvoidingView, Platform, Pressable, ScrollView, Text, TextInput, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { api } from "../src/api";
-import nav from "../src/navigation";
-import { saveSession } from "../src/session";
-import { styles } from "../src/styles";
+import { api } from "../actions/api";
+import nav from "../actions/navigation";
+import { saveSession } from "../actions/session";
+import { styles } from "../actions/styles";
 
 export default function VerificationScreen({ navigation, route }: any) {
   const insets = useSafeAreaInsets();

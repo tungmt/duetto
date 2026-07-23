@@ -1,12 +1,14 @@
-import { Audio, AVPlaybackStatusSuccess, ResizeMode, Video } from "expo-av";
+import { useEventListener } from "expo";
+import { createAudioPlayer, RecordingPresets, requestRecordingPermissionsAsync, setAudioModeAsync, useAudioRecorder } from "expo-audio";
 import { useFocusEffect, useNavigation, useRoute } from "@react-navigation/native";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { useCallback, useRef, useState } from "react";
+import { VideoView, useVideoPlayer } from "expo-video";
 import { Alert, KeyboardAvoidingView, Platform, Pressable, ScrollView, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { api } from "../../src/api";
-import nav from "../../src/navigation";
-import { styles } from "../../src/styles";
+import { api } from "../../actions/api";
+import nav from "../../actions/navigation";
+import { styles } from "../../actions/styles";
 
 type SubmissionDetailNavigationProp = NativeStackNavigationProp<any, "SubmissionDetail">;
 type SubmissionDetailRoute = { params?: { submissionId?: string } };
@@ -37,15 +39,18 @@ export default function SubmissionDetailScreen() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [uploadProgress, setUploadProgress] = useState<number | null>(null);
-  const recordingRef = useRef<Audio.Recording | null>(null);
-  const challengeVideoRef = useRef<Video | null>(null);
-  const answerSoundRef = useRef<Audio.Sound | null>(null);
+  const audioRecorder = useAudioRecorder(RecordingPresets.HIGH_QUALITY);
+  const answerSoundRef = useRef<ReturnType<typeof createAudioPlayer> | null>(null);
   const answerSoundUriRef = useRef("");
   const syncBusyRef = useRef(false);
   const [isRecording, setIsRecording] = useState(false);
   const [replacementUri, setReplacementUri] = useState("");
 
   const currentAnswerUri = replacementUri || submission?.answerMediaUrl || "";
+  const challengeVideoPlayer = useVideoPlayer(submission?.challenge.sourceVideoUrl ?? null, (player) => {
+    player.timeUpdateEventInterval = 0.1;
+    player.audioMixingMode = "auto";
+  });
 
   async function ensureAnswerSound() {
     if (!currentAnswerUri) {
@@ -57,18 +62,19 @@ export default function SubmissionDetailScreen() {
       if (answerSoundUriRef.current === currentAnswerUri) {
         return existing;
       }
-      await existing.unloadAsync().catch(() => undefined);
+      existing.remove();
       answerSoundRef.current = null;
       answerSoundUriRef.current = "";
     }
 
-    const { sound } = await Audio.Sound.createAsync({ uri: currentAnswerUri }, { shouldPlay: false, positionMillis: 0 });
+    const sound = createAudioPlayer({ uri: currentAnswerUri }, { keepAudioSessionActive: true });
+    await sound.seekTo(0);
     answerSoundRef.current = sound;
     answerSoundUriRef.current = currentAnswerUri;
     return sound;
   }
 
-  async function syncAnswerToVideo(status: AVPlaybackStatusSuccess) {
+  async function syncAnswerToVideo(positionMs: number, isPlaying: boolean, didJustFinish: boolean) {
     if (!currentAnswerUri || syncBusyRef.current) {
       return;
     }
@@ -78,26 +84,21 @@ export default function SubmissionDetailScreen() {
       const sound = await ensureAnswerSound();
       if (!sound) return;
 
-      const soundStatus = await sound.getStatusAsync();
-      if (!soundStatus.isLoaded) return;
-
-      const drift = Math.abs((soundStatus.positionMillis ?? 0) - (status.positionMillis ?? 0));
+      const drift = Math.abs(Math.round(sound.currentTime * 1000) - positionMs);
       if (drift > 220) {
-        await sound.setPositionAsync(status.positionMillis ?? 0);
+        await sound.seekTo(positionMs / 1000);
       }
 
-      if (status.didJustFinish) {
-        if (soundStatus.isPlaying) {
-          await sound.pauseAsync();
-        }
-        await sound.setPositionAsync(0);
+      if (didJustFinish) {
+        sound.pause();
+        await sound.seekTo(0);
         return;
       }
 
-      if (status.isPlaying && !soundStatus.isPlaying) {
-        await sound.playAsync();
-      } else if (!status.isPlaying && soundStatus.isPlaying) {
-        await sound.pauseAsync();
+      if (isPlaying && !sound.playing) {
+        sound.play();
+      } else if (!isPlaying && sound.playing) {
+        sound.pause();
       }
     } catch {
       // Keep video controls responsive even if one sync update fails.
@@ -133,21 +134,38 @@ export default function SubmissionDetailScreen() {
   useFocusEffect(
     useCallback(() => {
       return () => {
+        challengeVideoPlayer.pause();
         if (answerSoundRef.current) {
-          answerSoundRef.current.unloadAsync().catch(() => undefined);
+          answerSoundRef.current.remove();
           answerSoundRef.current = null;
           answerSoundUriRef.current = "";
         }
       };
-    }, [])
+    }, [challengeVideoPlayer])
   );
+
+  useEventListener(challengeVideoPlayer, "timeUpdate", ({ currentTime }) => {
+    void syncAnswerToVideo(Math.round(currentTime * 1000), challengeVideoPlayer.playing, false);
+  });
+
+  useEventListener(challengeVideoPlayer, "playingChange", ({ isPlaying }) => {
+    void syncAnswerToVideo(Math.round(challengeVideoPlayer.currentTime * 1000), isPlaying, false);
+  });
+
+  useEventListener(challengeVideoPlayer, "playToEnd", () => {
+    void syncAnswerToVideo(Math.round(challengeVideoPlayer.duration * 1000), false, true);
+  });
 
   async function startRecording() {
     try {
-      await Audio.requestPermissionsAsync();
-      await Audio.setAudioModeAsync({ allowsRecordingIOS: true, playsInSilentModeIOS: true });
-      const { recording } = await Audio.Recording.createAsync(Audio.RecordingOptionsPresets.HIGH_QUALITY);
-      recordingRef.current = recording;
+      const permission = await requestRecordingPermissionsAsync();
+      if (!permission.granted) {
+        Alert.alert("Error", "Microphone permission is required.");
+        return;
+      }
+      await setAudioModeAsync({ allowsRecording: true, playsInSilentMode: true });
+      await audioRecorder.prepareToRecordAsync();
+      audioRecorder.record();
       setIsRecording(true);
     } catch {
       Alert.alert("Error", "Could not start recording.");
@@ -156,15 +174,14 @@ export default function SubmissionDetailScreen() {
 
   async function stopRecording() {
     try {
-      const recording = recordingRef.current;
-      if (!recording) return;
-      await recording.stopAndUnloadAsync();
+      await audioRecorder.stop();
+      await setAudioModeAsync({ allowsRecording: false, playsInSilentMode: true });
       if (answerSoundRef.current) {
-        await answerSoundRef.current.unloadAsync().catch(() => undefined);
+        answerSoundRef.current.remove();
         answerSoundRef.current = null;
         answerSoundUriRef.current = "";
       }
-      setReplacementUri(recording.getURI() || "");
+      setReplacementUri(audioRecorder.uri || "");
       setIsRecording(false);
     } catch {
       Alert.alert("Error", "Could not stop recording.");
@@ -232,7 +249,7 @@ export default function SubmissionDetailScreen() {
       });
 
       if (answerSoundRef.current) {
-        await answerSoundRef.current.unloadAsync().catch(() => undefined);
+        answerSoundRef.current.remove();
         answerSoundRef.current = null;
         answerSoundUriRef.current = "";
       }
@@ -336,18 +353,11 @@ export default function SubmissionDetailScreen() {
             <View style={styles.card}>
               <Text style={styles.title}>Challenge Preview</Text>
               <Text style={[styles.status, { marginBottom: 8 }]}>Use this play button to preview challenge video with your answer audio together.</Text>
-              <Video
-                ref={(ref) => {
-                  challengeVideoRef.current = ref;
-                }}
-                source={{ uri: submission.challenge.sourceVideoUrl }}
+              <VideoView
+                player={challengeVideoPlayer}
                 style={styles.videoContainer}
-                resizeMode={ResizeMode.CONTAIN}
-                useNativeControls
-                onPlaybackStatusUpdate={(status) => {
-                  if (!status.isLoaded) return;
-                  syncAnswerToVideo(status);
-                }}
+                contentFit="contain"
+                nativeControls
               />
             </View>
 

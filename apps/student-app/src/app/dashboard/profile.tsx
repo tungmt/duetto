@@ -2,10 +2,10 @@ import { useEffect, useState } from "react";
 import { Alert, KeyboardAvoidingView, Platform, Pressable, ScrollView, Text, TextInput, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { api } from "../../src/api";
-import nav from "../../src/navigation";
-import { clearSession } from "../../src/session";
-import { styles } from "../../src/styles";
+import { api } from "../../actions/api";
+import nav from "../../actions/navigation";
+import { clearSession } from "../../actions/session";
+import { styles } from "../../actions/styles";
 
 export default function ProfileScreen({ navigation }: any) {
   const insets = useSafeAreaInsets();

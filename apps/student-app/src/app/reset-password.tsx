@@ -2,8 +2,8 @@ import { useState } from "react";
 import { Alert, KeyboardAvoidingView, Platform, Pressable, ScrollView, Text, TextInput, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { api } from "../src/api";
-import { styles } from "../src/styles";
+import { api } from "../actions/api";
+import { styles } from "../actions/styles";
 
 type Step = "request" | "verify";
 
@@ -99,7 +99,7 @@ export default function ResetPasswordScreen({ navigation }: any) {
             </Text>
           </View>
 
-          <View style={{ gap: 12 }}>
+          <View style={{ gap: 12, marginHorizontal: 16 }}>
             {step === "request" ? (
               <>
                 <View>

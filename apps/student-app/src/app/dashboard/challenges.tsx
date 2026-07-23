@@ -1,12 +1,13 @@
-import { Audio, ResizeMode, Video } from "expo-av";
 import { useBottomTabBarHeight } from "@react-navigation/bottom-tabs";
 import { useFocusEffect } from "@react-navigation/native";
 import { useEffect, useMemo, useRef, useState, useCallback } from "react";
+import { setAudioModeAsync } from "expo-audio";
+import { VideoView, useVideoPlayer } from "expo-video";
 import { Dimensions, FlatList, Image, Pressable, StyleSheet, Text, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import { api } from "../../src/api";
-import nav from "../../src/navigation";
-import { styles } from "../../src/styles";
+import { api } from "../../actions/api";
+import nav from "../../actions/navigation";
+import { styles } from "../../actions/styles";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 type Challenge = {
@@ -63,6 +64,85 @@ function getInitials(name: string) {
   const parts = name.trim().split(/\s+/).filter(Boolean);
   if (!parts.length) return "T";
   return parts.slice(0, 2).map((part) => part[0]?.toUpperCase() ?? "").join("") || "T";
+}
+
+type ChallengeFeedItemProps = {
+  item: Challenge;
+  isActive: boolean;
+  isMuted: boolean;
+  itemHeight: number;
+  topInset: number;
+  onToggleMute: () => void;
+};
+
+function ChallengeFeedItem({ item, isActive, isMuted, itemHeight, topInset, onToggleMute }: ChallengeFeedItemProps) {
+  const answerCount = item._count?.submissions ?? 0;
+  const teacherName = item.teacher?.teacherProfile?.displayName || item.teacher?.name || "Teacher";
+
+  const player = useVideoPlayer(item.sourceVideoUrl, (videoPlayer) => {
+    videoPlayer.loop = true;
+    videoPlayer.muted = isMuted;
+  });
+
+  useEffect(() => {
+    player.muted = isMuted;
+  }, [isMuted, player]);
+
+  useEffect(() => {
+    if (isActive) {
+      player.play();
+      return;
+    }
+
+    player.pause();
+    player.currentTime = 0;
+  }, [isActive, player]);
+
+  return (
+    <View style={[localStyles.itemWrap, { height: itemHeight }]}>
+      <VideoView
+        player={player}
+        style={localStyles.video}
+        contentFit="cover"
+        nativeControls={false}
+      />
+
+      <View style={localStyles.topBadgeWrap}>
+        <Text style={localStyles.topBadgeText}>
+          Practice Zone
+        </Text>
+      </View>
+
+      <View style={[localStyles.bottomFade]} />
+
+      <Pressable onPress={() => nav.navigate("ChallengeDetail", { id: item.id })} style={[localStyles.infoOverlay, { bottom: 0 }]}>
+        <Text style={localStyles.challengeTitle} numberOfLines={2}>{item.title}</Text>
+        {item.teacher?.id ? (
+          <Pressable
+            onPress={() => nav.navigate("TeacherDetail", { teacherId: item.teacher?.id })}
+            style={localStyles.compactMetaRow}
+          >
+            <Text style={localStyles.compactMetaText} numberOfLines={1}>
+              @{teacherName} • {formatTimeAgo(item.createdAt)} • {answerCount} answers
+            </Text>
+          </Pressable>
+        ) : (
+          <Text style={localStyles.compactMetaText} numberOfLines={1}>
+            @{teacherName} • {formatTimeAgo(item.createdAt)} • {answerCount} answers
+          </Text>
+        )}
+      </Pressable>
+
+      <View style={[localStyles.actionRail, { top: topInset + 12 }]}>
+        <Pressable
+          onPress={onToggleMute}
+          style={localStyles.railButton}
+        >
+          <Ionicons name={isMuted ? "volume-mute" : "volume-high"} size={20} color="#ffffff" />
+        </Pressable>
+      </View>
+    </View>
+  );
 }
 
 export default function ChallengesScreen({ navigation }: any) {
@@ -132,10 +212,10 @@ export default function ChallengesScreen({ navigation }: any) {
   }, []);
 
   useEffect(() => {
-    Audio.setAudioModeAsync({
-      allowsRecordingIOS: false,
-      playsInSilentModeIOS: true,
-      shouldDuckAndroid: true
+    setAudioModeAsync({
+      allowsRecording: false,
+      playsInSilentMode: true,
+      interruptionMode: "duckOthers"
     }).catch(() => undefined);
   }, []);
 
@@ -196,56 +276,15 @@ export default function ChallengesScreen({ navigation }: any) {
             fetchChallenges(true);
           }}
           renderItem={({ item }) => {
-            const isActive = activeId === item.id;
-            const answerCount = item._count?.submissions ?? 0;
-            const teacherName = item.teacher?.teacherProfile?.displayName || item.teacher?.name || "Teacher";
             return (
-              <View style={[localStyles.itemWrap, { height: itemHeight }]}>
-                <Video
-                  source={{ uri: item.sourceVideoUrl }}
-                  style={localStyles.video}
-                  resizeMode={ResizeMode.COVER}
-                  isLooping
-                  shouldPlay={isActive}
-                  isMuted={isMuted}
-                />
-
-                <View style={localStyles.topBadgeWrap}>
-                  <Text style={localStyles.topBadgeText}>
-                    Practice Zone
-                  </Text>
-                </View>
-
-                <View style={[localStyles.bottomFade]} />
-
-                <Pressable onPress={() => nav.navigate("ChallengeDetail", { id: item.id })} style={[localStyles.infoOverlay, { bottom: 0 }]}>
-                  <Text style={localStyles.challengeTitle} numberOfLines={2}>{item.title}</Text>
-                  {item.teacher?.id ? (
-                    <Pressable
-                      onPress={() => nav.navigate("TeacherDetail", { teacherId: item.teacher?.id })}
-                      style={localStyles.compactMetaRow}
-                    >
-                      <Text style={localStyles.compactMetaText} numberOfLines={1}>
-                        @{teacherName} • {formatTimeAgo(item.createdAt)} • {answerCount} answers
-                      </Text>
-                    </Pressable>
-                  ) : (
-                    <Text style={localStyles.compactMetaText} numberOfLines={1}>
-                      @{teacherName} • {formatTimeAgo(item.createdAt)} • {answerCount} answers
-                    </Text>
-                  )}
-                </Pressable>
-
-                <View style={[localStyles.actionRail, { top: insets.top + 12 }]}>
-                  <Pressable
-                    onPress={() => setIsMuted((prev) => !prev)}
-                    style={localStyles.railButton}
-                  >
-                    <Ionicons name={isMuted ? "volume-mute" : "volume-high"} size={20} color="#ffffff" />
-                  </Pressable>
-
-                </View>
-              </View>
+              <ChallengeFeedItem
+                item={item}
+                isActive={activeId === item.id}
+                isMuted={isMuted}
+                itemHeight={itemHeight}
+                topInset={insets.top}
+                onToggleMute={() => setIsMuted((prev) => !prev)}
+              />
             );
           }}
           ListFooterComponent={
