@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
-import { FlatList, Pressable, ScrollView, Text, View } from "react-native";
+import { FlatList, Pressable, ScrollView, View } from "react-native";
+import Text from "../../components/Text";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { api } from "../../actions/api";
 import { styles } from "../../actions/styles";

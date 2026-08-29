@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
-import { Alert, Image, Pressable, ScrollView, Text, View } from "react-native";
+import { Alert, Image, Pressable, ScrollView, View } from "react-native";
+import Text from "../../components/Text";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { api } from "../../actions/api";
 import nav from "../../actions/navigation";

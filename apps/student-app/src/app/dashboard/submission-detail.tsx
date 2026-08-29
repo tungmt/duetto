@@ -4,7 +4,8 @@ import { useFocusEffect, useNavigation, useRoute } from "@react-navigation/nativ
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { useCallback, useRef, useState } from "react";
 import { VideoView, useVideoPlayer } from "expo-video";
-import { Alert, KeyboardAvoidingView, Platform, Pressable, ScrollView, Text, View } from "react-native";
+import { Alert, KeyboardAvoidingView, Platform, Pressable, ScrollView, View } from "react-native";
+import Text from "../../components/Text";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { api } from "../../actions/api";
 import nav from "../../actions/navigation";

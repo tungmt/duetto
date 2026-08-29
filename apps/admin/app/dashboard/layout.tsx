@@ -1,58 +1,61 @@
-import Link from "next/link";
-import { logoutAction, requireSession } from "../actions";
+'use client';
 
-const navItems = [
-  { href: "/dashboard", label: "Overview", icon: "⊞" },
-  { href: "/dashboard/users", label: "Users", icon: "👥" },
-  { href: "/dashboard/teachers", label: "Teachers", icon: "🎓" },
-  { href: "/dashboard/students", label: "Students", icon: "📚" },
-  { href: "/dashboard/classes", label: "Classes", icon: "🏫" }
-];
+import Link from 'next/link';
+import { usePathname } from 'next/navigation';
+import { adminFetch, requireSession } from './actions';
 
-const adminOnlyItems = [
-  { href: "/dashboard/admins", label: "Admin & Moderators", icon: "🔐" }
-];
+interface DashboardLayoutProps {  
+  children: React.ReactNode; 
+  
+} 
 
-export default async function DashboardLayout({ children }: { children: React.ReactNode }) {
-  const session = await requireSession();
-  const isAdmin = session.role === "ADMIN";
+export default async function DashboardLayout({ children }:DashboardLayoutProps) { 
+  
+const session = await requireSession(); 
 
-  return (
-    <div className="app-shell">
-      <aside className="sidebar">
-        <div className="sidebar-header">
-          <span className="logo-mark">D</span>
-          <span className="sidebar-title">Duetto Admin</span>
-        </div>
+// Get current user's role to determine navigation items
+let isSystemAdmin = false;
 
-        <nav className="sidebar-nav">
-          {navItems.map((item) => (
-            <Link key={item.href} href={item.href} className="nav-item">
-              <span className="nav-icon">{item.icon}</span>
-              {item.label}
-            </Link>
-          ))}
-          {isAdmin &&
-            adminOnlyItems.map((item) => (
-              <Link key={item.href} href={item.href} className="nav-item">
-                <span className="nav-icon">{item.icon}</span>
-                {item.label}
-              </Link>
-            ))}
-        </nav>
+if (session?.role === 'SYSTEM_ADMIN') {
+isSystemAdmin = true;} else if(session?.adminType ==='CENTER_ADMIN'){
 
-        <div className="sidebar-footer">
-          <div className="session-info">
-            <div className="session-name">{session.name}</div>
-            <div className="session-role">{session.role}</div>
-          </div>
-          <form action={logoutAction}>
-            <button type="submit" className="btn-logout">Sign out</button>
-          </form>
-        </div>
-      </aside>
+} else{
 
-      <main className="page-content">{children}</main>
-    </div>
-  );
+
+console.log('Using legacy admin access'); 
 }
+
+return (
+  <div className="min-h-screen">  
+    {/* Top Navigation Bar */}
+    <header className="border-b py-4 flex items-center justify-between">
+      <h1 className="text-xl font-bold text-gray-900">Duetto Admin</h1>
+      <nav className="flex space-x-4">
+        <Link href="/dashboard" className="text-blue-600 hover:text-blue-700 flex items-center gap-2">
+          Dashboard
+        </Link>
+        <Link href="/dashboard/centers" className="text-blue-600 hover:text-blue-700 flex items-center gap-2">
+          Centers 
+          {session?.adminType === 'SYSTEM_ADMIN' && <span>(All)</span>}
+        </Link>
+        <Link href="/dashboard/users" className="text-gray-600 hover:text-gray-700">Users</Link>
+        <a href="#" className="text-gray-600 hover:text-gray-700">Settings</a>
+      </nav>
+    </header>
+
+    {/* Main Content Area */}
+    <div>{children}</div>
+
+    {/* Sidebar Navigation for System Admin */}
+    {isSystemAdmin && (
+      <aside className="ml-6 p-4 mt-6 border rounded-lg">
+        <h2 className="text-sm font-semibold text-gray-700 mb-3">System Navigation</h2>
+        <nav className="space-y-1">
+          <Link href="/dashboard/centers" className="block px-3 py-2 text-sm text-blue-600 hover:text-blue-700 rounded-md bg-gray-50">All Centers</Link>
+          <Link href="/dashboard/users" className="block px-3 py-2 text-sm text-gray-600 hover:text-gray-800 rounded-md">All Users</Link>
+          <a href="#" className="block px-3 py-2 text-sm text-gray-600 hover:text-gray-800 rounded-md">Platform Settings</a>
+        </nav>
+      </aside>
+    )}
+  </div>
+);

@@ -1,6 +1,6 @@
 import { getSessionUserId } from "./session";
 
-const API_URL = process.env.EXPO_PUBLIC_API_URL ?? "http://192.168.1.237:4000";
+const API_URL = process.env.EXPO_PUBLIC_API_URL ?? "http://192.168.1.168:4000";
 
 export class ApiError extends Error {
   status: number;

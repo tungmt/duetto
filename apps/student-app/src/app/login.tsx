@@ -1,11 +1,13 @@
 import { useState } from "react";
-import { Alert, KeyboardAvoidingView, Platform, Pressable, ScrollView, Text, TextInput, View } from "react-native";
+import { Alert, KeyboardAvoidingView, Platform, Pressable, ScrollView, TextInput, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { api } from "../actions/api";
 import nav from "../actions/navigation";
 import { saveSession } from "../actions/session";
 import { styles } from "../actions/styles";
+import Text from "../components/Text";
+import colors from "../configs/colors";
 
 export default function LoginScreen({ navigation }: any) {
   const insets = useSafeAreaInsets();
@@ -43,31 +45,18 @@ export default function LoginScreen({ navigation }: any) {
     <View style={styles.safe}>
       <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : "height"} style={{ flex: 1 }}>
         <ScrollView contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
-          <View
-            style={[
-              styles.heroCard,
-              {
-                marginBottom: 16,
-                paddingTop: insets.top + 16,
-                paddingHorizontal: 16,
-                paddingBottom: 16
-              }
-            ]}
-          >
+
+          <View style={{ gap: 24, marginHorizontal: 16, paddingTop: insets.top + 24, paddingBottom: 24 }}>
             <View style={styles.heroTopRow}>
               <Text style={styles.heroTitle}>Welcome Back</Text>
             </View>
-            <Text style={styles.heroEyebrow}>Student Login</Text>
-            <Text style={styles.heroSubtitle}>Sign in to your student account.</Text>
-          </View>
 
-          <View style={{ gap: 12, marginHorizontal: 16 }}>
             <View>
-              <Text style={[styles.title, { marginBottom: 8 }]}>Email</Text>
+              <Text style={[styles.title, { marginBottom: 8 }]}>Username or email</Text>
               <TextInput
                 value={email}
                 onChangeText={setEmail}
-                placeholder="student@example.com"
+                placeholder="email@example.com"
                 placeholderTextColor="#9ca3af"
                 autoCapitalize="none"
                 keyboardType="email-address"
@@ -114,18 +103,23 @@ export default function LoginScreen({ navigation }: any) {
             >
               <Text style={styles.buttonText}>{loading ? "Signing in..." : "Sign In"}</Text>
             </Pressable>
+
+            <View style={{ width: "100%", alignItems: "flex-end" }}>
+              <Pressable onPress={() => navigation.navigate("ResetPassword")}>
+                <Text style={styles.link}>Forgot password?</Text>
+              </Pressable>
+            </View>
           </View>
 
-          <View style={{ marginTop: 24, gap: 12, marginHorizontal: 16 }}>
-            <Pressable onPress={() => navigation.navigate("Register")} style={styles.buttonSecondary}>
-              <Text style={styles.buttonSecondaryText}>Create a new account</Text>
-            </Pressable>
-            <Pressable onPress={() => navigation.navigate("ResetPassword")}>
-              <Text style={styles.link}>Forgot your password?</Text>
-            </Pressable>
-          </View>
+
         </ScrollView>
       </KeyboardAvoidingView>
+
+      <View style={{ marginTop: 24, alignItems: "center", marginBottom: insets.bottom + 24, }}>
+        <Text style={{ fontSize: 14, color: '#BDB5C7' }}>Don't have an account? 
+          <Text onPress={() => navigation.navigate("Register")} style={{ color: colors.secondary, fontWeight: "bold" }}>{` Sign up`}</Text>
+        </Text>
+      </View>
     </View>
   );
 }

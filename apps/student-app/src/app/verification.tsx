@@ -1,6 +1,7 @@
 import { useState } from "react";
-import { Alert, KeyboardAvoidingView, Platform, Pressable, ScrollView, Text, TextInput, View } from "react-native";
+import { Alert, KeyboardAvoidingView, Platform, Pressable, ScrollView, TextInput, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import Text from "../components/Text";
 import { api } from "../actions/api";
 import nav from "../actions/navigation";
 import { saveSession } from "../actions/session";

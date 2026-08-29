@@ -1,9 +1,11 @@
 import { useState } from "react";
-import { Alert, KeyboardAvoidingView, Platform, Pressable, ScrollView, Text, TextInput, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
+import { Alert, KeyboardAvoidingView, Platform, Pressable, ScrollView, TextInput, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import Text from "../components/Text";
 import { api } from "../actions/api";
 import { styles } from "../actions/styles";
+import colors from "../configs/colors";
 
 export default function RegisterScreen({ navigation }: any) {
   const insets = useSafeAreaInsets();
@@ -47,25 +49,8 @@ export default function RegisterScreen({ navigation }: any) {
     <View style={styles.safe}>
       <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : "height"} style={{ flex: 1 }}>
         <ScrollView contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
-          <View
-            style={[
-              styles.heroCard,
-              {
-                marginBottom: 16,
-                paddingTop: insets.top + 16,
-                paddingHorizontal: 16,
-                paddingBottom: 16
-              }
-            ]}
-          >
-            <View style={styles.heroTopRow}>
-              <Text style={styles.heroTitle}>Create Account</Text>
-            </View>
-            <Text style={styles.heroEyebrow}>Student Onboarding</Text>
-            <Text style={styles.heroSubtitle}>Join as a student to get started.</Text>
-          </View>
-
-          <View style={{ gap: 12, marginHorizontal: 16 }}>
+          <View style={{ gap: 24, marginHorizontal: 16, paddingTop: insets.top + 16, paddingBottom: 24 }}>
+            <Text style={styles.heroTitle}>Create Account</Text>
             <View>
               <Text style={[styles.title, { marginBottom: 8 }]}>Full Name</Text>
               <TextInput
@@ -159,14 +144,14 @@ export default function RegisterScreen({ navigation }: any) {
               <Text style={styles.buttonText}>{loading ? "Creating account..." : "Create Account"}</Text>
             </Pressable>
           </View>
-
-          <View style={{ marginTop: 24, marginHorizontal: 16 }}>
-            <Pressable onPress={() => navigation.navigate("Login")}>
-              <Text style={styles.link}>Already have an account? Sign in</Text>
-            </Pressable>
-          </View>
         </ScrollView>
       </KeyboardAvoidingView>
+
+      <View style={{ marginTop: 24, alignItems: "center", marginBottom: insets.bottom + 24, }}>
+        <Text style={{ fontSize: 14, color: '#BDB5C7' }}>Already have an account?
+            <Text onPress={() => navigation.navigate("Login")} style={{color: colors.secondary, fontWeight: "bold"}}>{` Sign in`}</Text>
+        </Text>
+      </View>
     </View>
   );
 }

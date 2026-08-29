@@ -24,6 +24,60 @@
     },
     "web": {
       "favicon": "./assets/favicon.png"
-    }
+    },
+    "plugins": [
+      [
+        "expo-font",
+        {
+          "fonts": [
+            "./assets/fonts/Nunito-Black.ttf",
+            "./assets/fonts/Nunito-Bold.ttf",
+            "./assets/fonts/Nunito-Light.ttf",
+            "./assets/fonts/Nunito-Medium.ttf",
+            "./assets/fonts/Nunito-Regular.ttf",
+            "./assets/fonts/Nunito-SemiBold.ttf"
+          ],
+          "android": {
+            "fonts": [
+              {
+                "fontFamily": "Nunito",
+                "fontDefinitions": [
+                  {
+                    "path": "./assets/fonts/Nunito-Bold.ttf",
+                    "weight": 700
+                  },
+                  {
+                    "path": "./assets/fonts/Nunito-Black.ttf",
+                    "weight": 900
+                  },
+                  {
+                    "path": "./assets/fonts/Nunito-Light.ttf",
+                    "weight": 300
+                  },
+                  {
+                    "path": "./assets/fonts/Nunito-Regular.ttf",
+                    "weight": 400
+                  },
+                  {
+                    "path": "./assets/fonts/Nunito-SemiBold.ttf",
+                    "weight": 600
+                  }
+                ]
+              }
+            ]
+          },
+          "ios": {
+            "fonts": [
+              "./assets/fonts/Nunito-Black.ttf",
+              "./assets/fonts/Nunito-Bold.ttf",
+              "./assets/fonts/Nunito-Light.ttf",
+              "./assets/fonts/Nunito-Medium.ttf",
+              "./assets/fonts/Nunito-Regular.ttf",
+              "./assets/fonts/Nunito-SemiBold.ttf"
+            ]
+          }
+        }
+      ]
+    ]
   }
 }

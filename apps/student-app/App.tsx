@@ -4,6 +4,7 @@ import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 import { ActivityIndicator, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
+import { useFonts } from "expo-font";
 import { getSessionUserId } from "./src/actions/session";
 import { isReadyRef, navigationRef } from "./src/actions/navigation";
 
@@ -121,6 +122,14 @@ function AppStack() {
 export default function RootNavigator() {
   const [initialRoute, setInitialRoute] = useState<"Auth" | "App" | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [fontsLoaded, fontError] = useFonts({
+    Nunito: require("./assets/fonts/Nunito-Regular.ttf"),
+    "Nunito-Light": require("./assets/fonts/Nunito-Light.ttf"),
+    "Nunito-Medium": require("./assets/fonts/Nunito-Medium.ttf"),
+    "Nunito-SemiBold": require("./assets/fonts/Nunito-SemiBold.ttf"),
+    "Nunito-Bold": require("./assets/fonts/Nunito-Bold.ttf"),
+    "Nunito-Black": require("./assets/fonts/Nunito-Black.ttf")
+  });
 
   useEffect(() => {
     async function checkAuth() {
@@ -137,7 +146,7 @@ export default function RootNavigator() {
     checkAuth();
   }, []);
 
-  if (isLoading) {
+  if (isLoading || (!fontsLoaded && !fontError)) {
     return (
       <View style={{ flex: 1, justifyContent: "center", alignItems: "center", backgroundColor: "#eef3f8" }}>
         <ActivityIndicator size="large" />

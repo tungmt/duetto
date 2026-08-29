@@ -1,9 +1,10 @@
 import { useBottomTabBarHeight } from "@react-navigation/bottom-tabs";
-import { useFocusEffect } from "@react-navigation/native";
+import { useFocusEffect, useIsFocused } from "@react-navigation/native";
 import { useEffect, useMemo, useRef, useState, useCallback } from "react";
 import { setAudioModeAsync } from "expo-audio";
 import { VideoView, useVideoPlayer } from "expo-video";
-import { Dimensions, FlatList, Image, Pressable, StyleSheet, Text, View } from "react-native";
+import { Dimensions, FlatList, Image, Pressable, StyleSheet, View } from "react-native";
+import Text from "../../components/Text";
 import { Ionicons } from "@expo/vector-icons";
 import { api } from "../../actions/api";
 import nav from "../../actions/navigation";
@@ -69,13 +70,15 @@ function getInitials(name: string) {
 type ChallengeFeedItemProps = {
   item: Challenge;
   isActive: boolean;
+  isScreenFocused: boolean;
   isMuted: boolean;
   itemHeight: number;
   topInset: number;
   onToggleMute: () => void;
+  onOpenChallenge: (challengeId: string) => void;
 };
 
-function ChallengeFeedItem({ item, isActive, isMuted, itemHeight, topInset, onToggleMute }: ChallengeFeedItemProps) {
+function ChallengeFeedItem({ item, isActive, isScreenFocused, isMuted, itemHeight, topInset, onToggleMute, onOpenChallenge }: ChallengeFeedItemProps) {
   const answerCount = item._count?.submissions ?? 0;
   const teacherName = item.teacher?.teacherProfile?.displayName || item.teacher?.name || "Teacher";
 
@@ -89,14 +92,20 @@ function ChallengeFeedItem({ item, isActive, isMuted, itemHeight, topInset, onTo
   }, [isMuted, player]);
 
   useEffect(() => {
-    if (isActive) {
+    if (isScreenFocused && isActive) {
       player.play();
       return;
     }
 
     player.pause();
     player.currentTime = 0;
-  }, [isActive, player]);
+  }, [isActive, isScreenFocused, player]);
+
+  function openChallengeDetail() {
+    player.pause();
+    player.currentTime = 0;
+    onOpenChallenge(item.id);
+  }
 
   return (
     <View style={[localStyles.itemWrap, { height: itemHeight }]}>
@@ -107,15 +116,9 @@ function ChallengeFeedItem({ item, isActive, isMuted, itemHeight, topInset, onTo
         nativeControls={false}
       />
 
-      <View style={localStyles.topBadgeWrap}>
-        <Text style={localStyles.topBadgeText}>
-          Practice Zone
-        </Text>
-      </View>
-
       <View style={[localStyles.bottomFade]} />
 
-      <Pressable onPress={() => nav.navigate("ChallengeDetail", { id: item.id })} style={[localStyles.infoOverlay, { bottom: 0 }]}>
+      <Pressable onPress={openChallengeDetail} style={[localStyles.infoOverlay, { bottom: 0 }]}>
         <Text style={localStyles.challengeTitle} numberOfLines={2}>{item.title}</Text>
         {item.teacher?.id ? (
           <Pressable
@@ -154,11 +157,19 @@ export default function ChallengesScreen({ navigation }: any) {
   const [hasMore, setHasMore] = useState(true);
   const [isMuted, setIsMuted] = useState(false);
   const insets = useSafeAreaInsets();
+  const isScreenFocused = useIsFocused();
 
   const windowHeight = Dimensions.get("window").height;
   const tabBarHeight = useBottomTabBarHeight();
   const itemHeight = useMemo(() => Math.max(320, windowHeight - tabBarHeight), [tabBarHeight, windowHeight]);
   const listRef = useRef<FlatList<Challenge>>(null);
+  const lastActiveIdRef = useRef<string | null>(null);
+
+  const handleOpenChallenge = useCallback((challengeId: string) => {
+    lastActiveIdRef.current = activeId || challengeId;
+    setActiveId(null);
+    nav.navigate("ChallengeDetail", { id: challengeId });
+  }, [activeId]);
 
   async function fetchChallenges(loadMore = false) {
     if (loadMore) {
@@ -178,6 +189,8 @@ export default function ChallengesScreen({ navigation }: any) {
 
       const data = (await api(`/api/videos?${params.toString()}`)) as ChallengeResponse;
       const incoming = data.videos ?? [];
+
+      console.log({incoming})
 
       if (loadMore) {
         setChallenges((prev) => {
@@ -225,14 +238,32 @@ export default function ChallengesScreen({ navigation }: any) {
     }
   }, [activeId, challenges]);
 
+  useEffect(() => {
+    if (activeId) {
+      lastActiveIdRef.current = activeId;
+    }
+  }, [activeId]);
+
   useFocusEffect(
     useCallback(() => {
-      // Resume auto-play when screen is focused
+      const preferredId = lastActiveIdRef.current;
+      const fallbackId = challenges[0]?.id ?? null;
+      const nextActiveId = preferredId && challenges.some((item) => item.id === preferredId)
+        ? preferredId
+        : fallbackId;
+
+      if (nextActiveId) {
+        setActiveId(nextActiveId);
+      }
+
       return () => {
         // Pause video when screen loses focus (navigating away)
+        if (activeId) {
+          lastActiveIdRef.current = activeId;
+        }
         setActiveId(null);
       };
-    }, [])
+    }, [activeId, challenges])
   );
 
   const onViewableItemsChanged = useRef(({ viewableItems }: { viewableItems: Array<{ item: Challenge }> }) => {
@@ -280,10 +311,12 @@ export default function ChallengesScreen({ navigation }: any) {
               <ChallengeFeedItem
                 item={item}
                 isActive={activeId === item.id}
+                isScreenFocused={isScreenFocused}
                 isMuted={isMuted}
                 itemHeight={itemHeight}
                 topInset={insets.top}
                 onToggleMute={() => setIsMuted((prev) => !prev)}
+                onOpenChallenge={handleOpenChallenge}
               />
             );
           }}

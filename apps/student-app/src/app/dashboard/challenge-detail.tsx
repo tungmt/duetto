@@ -3,7 +3,8 @@ import { useEventListener } from "expo";
 import { createAudioPlayer, RecordingPresets, requestRecordingPermissionsAsync, setAudioModeAsync, useAudioRecorder } from "expo-audio";
 import { Camera, CameraView } from "expo-camera";
 import { VideoView, useVideoPlayer } from "expo-video";
-import { Alert, Image, KeyboardAvoidingView, LayoutChangeEvent, Platform, Pressable, ScrollView, Text, View } from "react-native";
+import { Alert, Image, KeyboardAvoidingView, LayoutChangeEvent, Platform, Pressable, ScrollView, View } from "react-native";
+import Text from "../../components/Text";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { api } from "../../actions/api";
 import nav from "../../actions/navigation";
@@ -55,6 +56,11 @@ export default function ChallengeDetailScreen({ navigation, route }: any) {
   const recordingArmedRef = useRef(false);
   const previewSoundRef = useRef<ReturnType<typeof createAudioPlayer> | null>(null);
   const previewSyncBusyRef = useRef(false);
+  const cameraRecordingPromiseRef = useRef<Promise<{ uri: string }> | null>(null);
+  const isCameraReadyRef = useRef(false);
+  const cameraReadyResolverRef = useRef<((ready: boolean) => void) | null>(null);
+  const cameraReadyAtMsRef = useRef(0);
+  const hasSeparateAudioRecordingRef = useRef(false);
 
   const [orchestrateState, setOrchestrateState] = useState<OrchestrateState>("idle");
   const [currentPeriodIndex, setCurrentPeriodIndex] = useState(0);
@@ -72,6 +78,7 @@ export default function ChallengeDetailScreen({ navigation, route }: any) {
   const [cameraVideoUri, setCameraVideoUri] = useState<string | null>(null);
   const [isComposingVideo, setIsComposingVideo] = useState(false);
   const [composedVideoUri, setComposedVideoUri] = useState<string | null>(null);
+  const [isCameraReady, setIsCameraReady] = useState(false);
 
   const audioRecorder = useAudioRecorder(RecordingPresets.HIGH_QUALITY);
   const challengeSource = challenge?.sourceVideoUrl ?? null;
@@ -89,6 +96,11 @@ export default function ChallengeDetailScreen({ navigation, route }: any) {
 
   const studentPreviewPlayer = useVideoPlayer(orchestrateState === "done" ? previewStudentUri : null, (player) => {
     player.muted = true;
+  });
+
+  const mergedDuetPlayer = useVideoPlayer(orchestrateState === "done" ? composedVideoUri : null, (player) => {
+    player.muted = false;
+    player.audioMixingMode = "auto";
   });
 
   useEffect(() => {
@@ -116,11 +128,22 @@ export default function ChallengeDetailScreen({ navigation, route }: any) {
     (async () => {
       const cameraPerm = await Camera.requestCameraPermissionsAsync();
       setCameraPermission(cameraPerm.granted);
+      await Camera.requestMicrophonePermissionsAsync();
     })();
   }, []);
 
+  useEventListener(mergedDuetPlayer, "sourceLoad", () => {
+    if (orchestrateStateRef.current === "done" && composedVideoUri) {
+      mergedDuetPlayer.currentTime = 0;
+      mergedDuetPlayer.play();
+    }
+  });
+
   useEventListener(challengeVideoPlayer, "sourceLoad", ({ duration }) => {
     setVideoDurationMs(Math.round(duration * 1000));
+    if (orchestrateStateRef.current === "idle") {
+      challengeVideoPlayer.play();
+    }
   });
 
   useEventListener(challengeVideoPlayer, "timeUpdate", ({ currentTime }) => {
@@ -153,6 +176,10 @@ export default function ChallengeDetailScreen({ navigation, route }: any) {
       void onVideoPositionUpdate(endMs, true);
     }
 
+    if (orchestrateStateRef.current === "recording" && recordingArmedRef.current) {
+      void finalizeRecordingSession();
+    }
+
     if (orchestrateStateRef.current === "done") {
       void syncPreviewToVideo(endMs, false, true);
     }
@@ -160,16 +187,69 @@ export default function ChallengeDetailScreen({ navigation, route }: any) {
 
   async function startDuetting() {
     const cameraPerm = await Camera.requestCameraPermissionsAsync();
+    const microphonePerm = await Camera.requestMicrophonePermissionsAsync();
     if (!cameraPerm.granted) {
       Alert.alert("Camera Permission Required", "Please enable camera access in Settings to use the Duet feature.");
       return;
     }
+    if (!microphonePerm.granted) {
+      Alert.alert("Microphone Permission Required", "Please enable microphone access in Settings to record your duet audio.");
+      return;
+    }
+    resetOrchestration();
     setCameraPermission(true);
+    isCameraReadyRef.current = false;
+    setIsCameraReady(false);
+    challengeVideoPlayer.currentTime = 0;
+    challengeVideoPlayer.pause();
     setOrchestrateState("duetting");
+    orchestrateStateRef.current = "duetting";
   }
 
   async function cancelDuetting() {
     setOrchestrateState("idle");
+    orchestrateStateRef.current = "idle";
+    isCameraReadyRef.current = false;
+    setIsCameraReady(false);
+  }
+
+  function onCameraReady() {
+    console.log("Camera is ready");
+    isCameraReadyRef.current = true;
+    cameraReadyAtMsRef.current = Date.now();
+    setIsCameraReady(true);
+    if (cameraReadyResolverRef.current) {
+      cameraReadyResolverRef.current(true);
+      cameraReadyResolverRef.current = null;
+    }
+  }
+
+  async function waitForCameraReady(timeoutMs = 4000): Promise<boolean> {
+    if (isCameraReadyRef.current) {
+      return true;
+    }
+
+    return new Promise<boolean>((resolve) => {
+      let settled = false;
+      const timeoutId = setTimeout(() => {
+        if (settled) return;
+        settled = true;
+        cameraReadyResolverRef.current = null;
+
+        if(!isCameraReadyRef.current) {
+          resolve(false);
+        } else {
+          resolve(true);
+        }
+      }, timeoutMs);
+
+      cameraReadyResolverRef.current = (ready: boolean) => {
+        if (settled) return;
+        settled = true;
+        clearTimeout(timeoutId);
+        resolve(ready);
+      };
+    });
   }
 
   async function startPeriodRecording() {
@@ -181,26 +261,41 @@ export default function ChallengeDetailScreen({ navigation, route }: any) {
 
     challengeVideoPlayer.muted = true;
     setIsMuted(true);
-    await setAudioModeAsync({ allowsRecording: true, playsInSilentMode: true });
-    await audioRecorder.prepareToRecordAsync();
-    audioRecorder.record();
+
+    hasSeparateAudioRecordingRef.current = false;
+    try {
+      await setAudioModeAsync({ allowsRecording: true, playsInSilentMode: true });
+      await audioRecorder.prepareToRecordAsync();
+      audioRecorder.record();
+      hasSeparateAudioRecordingRef.current = true;
+    } catch (error) {
+      // Some devices cannot prepare a second recorder while camera captures audio.
+      // Keep duet recording alive and rely on camera audio track for merge.
+      console.error("Audio recorder prepare failed, continuing with camera audio only:", error);
+      await setAudioModeAsync({ allowsRecording: false, playsInSilentMode: true }).catch(() => undefined);
+    }
+
     orchestrateStateRef.current = "recording";
     setOrchestrateState("recording");
     return true;
   }
 
   async function stopPeriodRecording() {
-    try {
-      await audioRecorder.stop();
-    } catch {
-      return;
+    if (hasSeparateAudioRecordingRef.current) {
+      try {
+        await audioRecorder.stop();
+      } catch {
+        // Continue cleanup even if stopping recorder fails.
+      }
+
+      const uri = audioRecorder.uri ?? "";
+      if (uri) {
+        segmentUrisRef.current = [...segmentUrisRef.current, uri];
+        setSegmentCount(segmentUrisRef.current.length);
+      }
     }
 
-    const uri = audioRecorder.uri ?? "";
-    if (uri) {
-      segmentUrisRef.current = [...segmentUrisRef.current, uri];
-      setSegmentCount(segmentUrisRef.current.length);
-    }
+    hasSeparateAudioRecordingRef.current = false;
 
     await setAudioModeAsync({ allowsRecording: false, playsInSilentMode: true });
     challengeVideoPlayer.muted = false;
@@ -225,39 +320,66 @@ export default function ChallengeDetailScreen({ navigation, route }: any) {
     }
 
     if (state === "recording" && didJustFinish) {
-      isOrchestratingRef.current = true;
-      try {
-        await stopPeriodRecording();
-
-        if (cameraRef.current?.stopRecording) {
-          try {
-            await cameraRef.current.stopRecording();
-          } catch (error) {
-            console.error("Error stopping camera recording:", error);
-          }
-        }
-
-        currentPeriodIndexRef.current = periods.length;
-        setCurrentPeriodIndex(periods.length);
-        orchestrateStateRef.current = "done";
-        setOrchestrateState("done");
-        recordingArmedRef.current = false;
-        setIsRecordingArmed(false);
-
-        if (segmentUrisRef.current.length > 0 && cameraVideoUriRef.current) {
-          await composeAndExportVideo();
-        }
-      } finally {
-        isOrchestratingRef.current = false;
-      }
+      await finalizeRecordingSession();
     }
   }
 
-  async function composeAndExportVideo() {
+  async function finalizeRecordingSession() {
+    if (isOrchestratingRef.current) return;
+
+    isOrchestratingRef.current = true;
+    try {
+      await stopPeriodRecording();
+
+      if (cameraRef.current?.stopRecording) {
+        try {
+          await cameraRef.current.stopRecording();
+        } catch (error) {
+          console.error("Error stopping camera recording:", error);
+        }
+      }
+
+      let finalCameraUri = cameraVideoUriRef.current;
+      if (cameraRecordingPromiseRef.current) {
+        try {
+          const recordedVideo = await cameraRecordingPromiseRef.current;
+          if (recordedVideo?.uri) {
+            finalCameraUri = recordedVideo.uri;
+            cameraVideoUriRef.current = recordedVideo.uri;
+            setCameraVideoUri(recordedVideo.uri);
+            setStudentVideoUri(recordedVideo.uri);
+          }
+        } catch (error) {
+          console.error("Camera recording finalize error:", error);
+        } finally {
+          cameraRecordingPromiseRef.current = null;
+        }
+      }
+
+      const periodCount = challengeRef.current?.answerPeriods?.length ?? 0;
+      currentPeriodIndexRef.current = periodCount;
+      setCurrentPeriodIndex(periodCount);
+      orchestrateStateRef.current = "done";
+      setOrchestrateState("done");
+      recordingArmedRef.current = false;
+      setIsRecordingArmed(false);
+
+      if (finalCameraUri) {
+        await composeAndExportVideo(finalCameraUri);
+      } else {
+        Alert.alert("Merge Skipped", "No recorded camera video was found, so merged duet could not be generated.");
+      }
+    } finally {
+      isOrchestratingRef.current = false;
+    }
+  }
+
+  async function composeAndExportVideo(studentSourceUri?: string) {
     try {
       setIsComposingVideo(true);
 
-      if (!cameraVideoUriRef.current || !challengeRef.current?.sourceVideoUrl) {
+      const leftVideoUri = studentSourceUri || cameraVideoUriRef.current;
+      if (!leftVideoUri || !challengeRef.current?.sourceVideoUrl) {
         throw new Error("Missing video sources for composition");
       }
 
@@ -265,7 +387,7 @@ export default function ChallengeDetailScreen({ navigation, route }: any) {
       const fileName = `duet-${Date.now()}.mp4`;
 
       const result = await exportManager.exportDuetVideo(
-        cameraVideoUriRef.current,
+        leftVideoUri,
         challengeRef.current.sourceVideoUrl,
         fileName,
         (progress) => {
@@ -297,6 +419,12 @@ export default function ChallengeDetailScreen({ navigation, route }: any) {
     setStudentVideoUri(null);
     setCameraVideoUri(null);
     setComposedVideoUri(null);
+    cameraRecordingPromiseRef.current = null;
+    hasSeparateAudioRecordingRef.current = false;
+    isCameraReadyRef.current = false;
+    cameraReadyAtMsRef.current = 0;
+    setIsCameraReady(false);
+    cameraReadyResolverRef.current = null;
     challengeVideoPlayer.pause();
     challengeVideoPlayer.muted = false;
     challengeVideoPlayer.currentTime = 0;
@@ -307,24 +435,97 @@ export default function ChallengeDetailScreen({ navigation, route }: any) {
   }
 
   async function startAutoRecordingFromBeginning() {
-    resetOrchestration();
+    void audioRecorder.stop().catch(() => undefined);
+    segmentUrisRef.current = [];
+    currentPeriodIndexRef.current = 0;
+    setCurrentPeriodIndex(0);
+    setSegmentCount(0);
+    setIsMuted(false);
+    setStudentVideoUri(null);
+    setCameraVideoUri(null);
+    cameraVideoUriRef.current = null;
+    setComposedVideoUri(null);
+    previewSoundRef.current?.remove();
+    previewSoundRef.current = null;
+    setPreviewReady(false);
+    challengeVideoPlayer.pause();
+    challengeVideoPlayer.muted = false;
+    challengeVideoPlayer.currentTime = 0;
+
     recordingArmedRef.current = true;
     setIsRecordingArmed(true);
+    orchestrateStateRef.current = "duetting";
+    setOrchestrateState("duetting");
+
+    // const ready = await waitForCameraReady();
+    // if (!ready) {
+    //   recordingArmedRef.current = false;
+    //   setIsRecordingArmed(false);
+    //   Alert.alert("Camera Not Ready", "Camera is still preparing. Please wait a moment and tap Record again.");
+    //   return;
+    // }
+
+    const elapsedSinceReady = Date.now() - cameraReadyAtMsRef.current;
+    const warmupMs = Math.max(0, 300 - elapsedSinceReady);
+    if (warmupMs > 0) {
+      await new Promise<void>((resolve) => setTimeout(resolve, warmupMs));
+    }
 
     try {
       if (cameraRef.current?.recordAsync) {
-        const cameraRecordingPromise = cameraRef.current.recordAsync({
-          maxDuration: (challengeRef.current?.answerPeriods?.[challengeRef.current.answerPeriods.length - 1]?.endMs ?? 0) / 1000
+        const durationSeconds = Math.max(
+          1,
+          Math.ceil(
+            (videoDurationMs || Math.round(challengeVideoPlayer.duration * 1000) || 60000) / 1000
+          )
+        );
+
+        const startCameraRecording = () => Promise.resolve().then(() => {
+          if (!cameraRef.current?.recordAsync) {
+            throw new Error("Camera not available for recording");
+          }
+
+          return cameraRef.current.recordAsync({
+            maxDuration: durationSeconds
+          }) as Promise<{ uri: string }>;
         });
+
+        let cameraRecordingPromise = startCameraRecording();
+        cameraRecordingPromise = cameraRecordingPromise.catch(async (error: any) => {
+          const message = String(error?.message || "");
+          const isNotReady = message.includes("CameraOutputNotReadyException") || message.includes("Camera is not ready yet");
+          if (!isNotReady) {
+            throw error;
+          }
+
+          const becameReady = await waitForCameraReady(2000);
+          if (!becameReady) {
+            throw error;
+          }
+
+          await new Promise<void>((resolve) => setTimeout(resolve, 250));
+
+          return startCameraRecording();
+        });
+
+        cameraRecordingPromiseRef.current = cameraRecordingPromise;
 
         if (cameraRecordingPromise) {
           cameraRecordingPromise.then((video) => {
             if (video?.uri) {
+              cameraVideoUriRef.current = video.uri;
               setCameraVideoUri(video.uri);
               setStudentVideoUri(video.uri);
             }
           }).catch((error) => {
             console.error("Camera recording error:", error);
+            recordingArmedRef.current = false;
+            setIsRecordingArmed(false);
+            orchestrateStateRef.current = "duetting";
+            setOrchestrateState("duetting");
+            Alert.alert("Camera Recording Error", "Camera failed to start recording. Please try again.");
+          }).finally(() => {
+            cameraRecordingPromiseRef.current = null;
           });
         }
       }
@@ -332,12 +533,19 @@ export default function ChallengeDetailScreen({ navigation, route }: any) {
       console.error("Error starting camera recording:", error);
     }
 
-    const didStart = await startPeriodRecording();
-    if (!didStart) {
-      recordingArmedRef.current = false;
-      setIsRecordingArmed(false);
-      return;
-    }
+    // const didStart = await startPeriodRecording();
+    // if (!didStart) {
+    //   recordingArmedRef.current = false;
+    //   setIsRecordingArmed(false);
+    //   if (cameraRef.current?.stopRecording) {
+    //     try {
+    //       await cameraRef.current.stopRecording();
+    //     } catch {
+    //       // ignore
+    //     }
+    //   }
+    //   return;
+    // }
 
     challengeVideoPlayer.currentTime = 0;
     challengeVideoPlayer.play();
@@ -567,45 +775,6 @@ export default function ChallengeDetailScreen({ navigation, route }: any) {
               </Text>
             </View>
 
-            {challenge.teacher?.id ? (
-              <Pressable
-                onPress={() => nav.navigate("TeacherDetail", { teacherId: challenge.teacher?.id })}
-                style={[styles.card, { marginTop: -2, flexDirection: "row", alignItems: "center", gap: 14 }]}
-              >
-                {challenge.teacher?.teacherProfile?.avatarUrl ? (
-                  <Image
-                    source={{ uri: challenge.teacher.teacherProfile.avatarUrl }}
-                    style={{ width: 56, height: 56, borderRadius: 28, backgroundColor: "#cbd5e1" }}
-                  />
-                ) : (
-                  <View
-                    style={{
-                      width: 56,
-                      height: 56,
-                      borderRadius: 28,
-                      backgroundColor: "#0369a1",
-                      alignItems: "center",
-                      justifyContent: "center"
-                    }}
-                  >
-                    <Text style={{ color: "#ffffff", fontSize: 20, fontWeight: "800" }}>
-                      {getInitials(challenge.teacher.teacherProfile?.displayName || challenge.teacher.name || "Teacher")}
-                    </Text>
-                  </View>
-                )}
-                <View style={{ flex: 1 }}>
-                  <Text style={styles.title}>{challenge.teacher?.teacherProfile?.displayName || challenge.teacher?.name || "Teacher"}</Text>
-                  <Text style={styles.subtitle} numberOfLines={1}>
-                    {challenge.teacher?.teacherProfile?.headline || "Open teacher profile"}
-                  </Text>
-                  {typeof challenge.teacher?.teacherProfile?.yearsExperience === "number" ? (
-                    <Text style={styles.status}>{challenge.teacher.teacherProfile.yearsExperience} years experience</Text>
-                  ) : null}
-                </View>
-                <Text style={styles.link}>View →</Text>
-              </Pressable>
-            ) : null}
-
             {orchestrateState === "duetting" || orchestrateState === "recording" ? (
               <View style={{ marginTop: 12, gap: 8 }}>
                 {!cameraPermission ? (
@@ -626,7 +795,6 @@ export default function ChallengeDetailScreen({ navigation, route }: any) {
                   <View
                     style={{
                       flexDirection: "row",
-                      gap: 8,
                       height: 320,
                       borderRadius: 12,
                       overflow: "hidden",
@@ -634,7 +802,7 @@ export default function ChallengeDetailScreen({ navigation, route }: any) {
                     }}
                   >
                     <View style={{ flex: 1, backgroundColor: "#1e293b", position: "relative" }}>
-                      <CameraView ref={cameraRef} style={{ flex: 1 }} facing="front" />
+                      <CameraView ref={cameraRef} style={{ flex: 1 }} facing="front" onCameraReady={onCameraReady} />
                       <View
                         style={{
                           position: "absolute",
@@ -664,7 +832,7 @@ export default function ChallengeDetailScreen({ navigation, route }: any) {
                       >
                         <Text style={{ fontSize: 10, color: "#ffffff" }}>🔴</Text>
                         <Text style={{ color: "#ffffff", fontSize: 10, fontWeight: "600" }}>
-                          {orchestrateState === "recording" ? "Recording" : "Ready"}
+                          {orchestrateState === "recording" ? "Recording" : isCameraReady ? "Ready" : "Loading"}
                         </Text>
                       </View>
                     </View>
@@ -693,21 +861,36 @@ export default function ChallengeDetailScreen({ navigation, route }: any) {
                     </View>
                   </View>
                 )}
-                {orchestrateState === "duetting" && cameraPermission ? (
-                  <View style={{ flexDirection: "row", gap: 8 }}>
+                {cameraPermission && orchestrateState === "duetting" ? (
+                  <View style={{ gap: 8 }}>
                     <Pressable
-                      style={[styles.button, { flex: 1 }]}
+                      style={styles.button}
                       onPress={startAutoRecordingFromBeginning}
-                      disabled={loading}
+                      disabled={loading || !isCameraReady}
                     >
-                      <Text style={styles.buttonText}>Record Your Answer</Text>
+                      <Text style={styles.buttonText}>{isCameraReady ? "⏺ Record Duet" : "Preparing Camera..."}</Text>
                     </Pressable>
                     <Pressable
-                      style={[styles.buttonSecondary, { flex: 1 }]}
+                      style={styles.buttonSecondary}
                       onPress={cancelDuetting}
                       disabled={loading}
                     >
                       <Text style={styles.buttonSecondaryText}>Cancel</Text>
+                    </Pressable>
+                  </View>
+                ) : null}
+
+                {cameraPermission && orchestrateState === "recording" ? (
+                  <View style={{ gap: 8 }}>
+                    <Pressable style={[styles.button, { opacity: 0.7 }]} disabled>
+                      <Text style={styles.buttonText}>Recording…</Text>
+                    </Pressable>
+                    <Pressable
+                      style={styles.buttonSecondary}
+                      onPress={cancelAutoRecording}
+                      disabled={loading}
+                    >
+                      <Text style={styles.buttonSecondaryText}>Cancel Recording</Text>
                     </Pressable>
                   </View>
                 ) : null}
@@ -802,6 +985,16 @@ export default function ChallengeDetailScreen({ navigation, route }: any) {
                     </Text>
                   </View>
                 ) : null}
+
+                {orchestrateState === "idle" ? (
+                  <Pressable
+                    style={[styles.button, { marginTop: 10 }]}
+                    onPress={startDuetting}
+                    disabled={loading}
+                  >
+                    <Text style={styles.buttonText}>Duet</Text>
+                  </Pressable>
+                ) : null}
               </View>
             )}
 
@@ -834,36 +1027,6 @@ export default function ChallengeDetailScreen({ navigation, route }: any) {
                     {periodStatusLabel()}
                   </Text>
                 </View>
-
-                {orchestrateState === "idle" && !isRecordingArmed ? (
-                  <Pressable
-                    style={[styles.button, loading && styles.buttonDisabled]}
-                    onPress={startDuetting}
-                    disabled={loading}
-                  >
-                    <Text style={styles.buttonText}>Duet</Text>
-                  </Pressable>
-                ) : null}
-
-                {orchestrateState === "idle" && isRecordingArmed ? (
-                  <Pressable
-                    style={[styles.button, loading && styles.buttonDisabled]}
-                    onPress={startDuetting}
-                    disabled={loading}
-                  >
-                    <Text style={styles.buttonText}>Record Your Answer Again</Text>
-                  </Pressable>
-                ) : null}
-
-                {orchestrateState === "recording" ? (
-                  <Pressable
-                    style={styles.buttonSecondary}
-                    onPress={cancelAutoRecording}
-                    disabled={loading}
-                  >
-                    <Text style={styles.buttonSecondaryText}>Cancel Recording</Text>
-                  </Pressable>
-                ) : null}
 
                 <View style={{ gap: 6 }}>
                   {challenge.answerPeriods.map((period, index) => {
@@ -900,10 +1063,25 @@ export default function ChallengeDetailScreen({ navigation, route }: any) {
                   <View style={{ gap: 10 }}>
                     <View style={styles.cardDark}>
                       <Text style={styles.title}>✓ {segmentCount} segment{segmentCount !== 1 ? "s" : ""} recorded</Text>
-                      <Text style={styles.status}>Preview your answer with the challenge below. Then submit.</Text>
+                      <Text style={styles.status}>Merged duet is generated automatically after recording. Preview below, then submit.</Text>
                     </View>
 
-                    {previewStudentUri ? (
+                    {composedVideoUri ? (
+                      <View style={{ gap: 8 }}>
+                        <Text style={styles.sectionTitle}>Merged Duet Result</Text>
+                        <VideoView
+                          player={mergedDuetPlayer}
+                          style={styles.videoContainer}
+                          contentFit="contain"
+                          nativeControls
+                        />
+                        <Text style={{ color: "#64748b", fontSize: 12, fontStyle: "italic" }}>
+                          This merged video includes your answer audio and the original challenge audio.
+                        </Text>
+                      </View>
+                    ) : null}
+
+                    {!composedVideoUri && previewStudentUri ? (
                       <View style={{ gap: 8 }}>
                         <Text style={styles.sectionTitle}>Your Duet Preview</Text>
                         <View
@@ -963,7 +1141,7 @@ export default function ChallengeDetailScreen({ navigation, route }: any) {
                           </View>
                         </View>
                         <Text style={{ color: "#64748b", fontSize: 12, fontStyle: "italic" }}>
-                          Your side-by-side video will be generated after you submit
+                          Your merged duet video is generated automatically after recording finishes
                         </Text>
                       </View>
                     ) : null}
@@ -1061,6 +1239,45 @@ export default function ChallengeDetailScreen({ navigation, route }: any) {
                 ) : null}
               </View>
             )}
+
+            {challenge.teacher?.id ? (
+              <Pressable
+                onPress={() => nav.navigate("TeacherDetail", { teacherId: challenge.teacher?.id })}
+                style={[styles.card, { marginTop: 14, flexDirection: "row", alignItems: "center", gap: 14 }]}
+              >
+                {challenge.teacher?.teacherProfile?.avatarUrl ? (
+                  <Image
+                    source={{ uri: challenge.teacher.teacherProfile.avatarUrl }}
+                    style={{ width: 56, height: 56, borderRadius: 28, backgroundColor: "#cbd5e1" }}
+                  />
+                ) : (
+                  <View
+                    style={{
+                      width: 56,
+                      height: 56,
+                      borderRadius: 28,
+                      backgroundColor: "#0369a1",
+                      alignItems: "center",
+                      justifyContent: "center"
+                    }}
+                  >
+                    <Text style={{ color: "#ffffff", fontSize: 20, fontWeight: "800" }}>
+                      {getInitials(challenge.teacher.teacherProfile?.displayName || challenge.teacher.name || "Teacher")}
+                    </Text>
+                  </View>
+                )}
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.title}>{challenge.teacher?.teacherProfile?.displayName || challenge.teacher?.name || "Teacher"}</Text>
+                  <Text style={styles.subtitle} numberOfLines={1}>
+                    {challenge.teacher?.teacherProfile?.headline || "Open teacher profile"}
+                  </Text>
+                  {typeof challenge.teacher?.teacherProfile?.yearsExperience === "number" ? (
+                    <Text style={styles.status}>{challenge.teacher.teacherProfile.yearsExperience} years experience</Text>
+                  ) : null}
+                </View>
+                <Text style={styles.link}>View →</Text>
+              </Pressable>
+            ) : null}
           </View>
         </ScrollView>
       </KeyboardAvoidingView>

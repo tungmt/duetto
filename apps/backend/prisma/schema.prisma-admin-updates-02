@@ -1,0 +1,14 @@
+// Admin role enum with enhanced types 
+enum RoleType {  
+  SYSTEM_ADMIN   // Has access to view/manage ALL centers, users, etc. (full platform scope) 
+}
+
+model CenterAssignment { 
+  
+id         String             @id @default(cuid()) 
+adminId    String           // Reference to admin.id
+schoolId   String            // The center they manage
+  
+role       RoleType          @default("OWNER") as RoleType 
+
+@@unique([schoolId, adminId])

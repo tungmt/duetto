@@ -1,0 +1,32 @@
+// Admin-specific extensions to the base schema
+
+enum RoleType {
+  SYSTEM_ADMIN    // Full system access, manages all centers and users globally  
+  CENTER_ADMIN     // Manages a specific center (students, teachers, classes)
+}
+
+model CenterAdminAssignment {
+  id          String        @id @default(cuid())
+  adminId     String       // Reference to Admin.id for this assignment record
+  schoolId    String         // School the admin manages (the "center")
+  
+  roleInCenter      RoleType  @default("OWNER" as RoleType)
+
+  createdAt   DateTime          @default(now()) 
+  updatedAt   DateTime          @updatedAt
+  
+  @@unique([schoolId, adminId])
+}
+
+model SystemAdmin {
+  id           String               @id @default(cuid())
+  email        String                @unique  
+  name         String
+  passwordHash String
+  createdAt    DateTime              @default(now()) 
+  updatedAt    DateTime              @updatedAt
+  
+  assignments CenterAdminAssignment[] 
+  
+  @@index([email])
+}

@@ -1,7 +1,8 @@
 import { StyleSheet } from "react-native";
+import colors from "../configs/colors";
 
 export const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: "#eef3f8" },
+  safe: { flex: 1, backgroundColor: colors.bgColor },
   container: { gap: 16, padding: 20, paddingBottom: 40 },
   scrollContent: { paddingBottom: 40 },
 
@@ -60,7 +61,7 @@ export const styles = StyleSheet.create({
   heading: { color: "#0f172a", fontSize: 32, fontWeight: "800", marginBottom: 4 },
   subheading: { color: "#475569", fontSize: 16, fontWeight: "500", marginBottom: 20 },
   sectionTitle: { color: "#0f172a", fontSize: 20, fontWeight: "700", marginTop: 20, marginBottom: 12 },
-  title: { color: "#0f172a", fontSize: 16, fontWeight: "700" },
+  title: { color: 'white', fontSize: 14, fontWeight: "bold" },
   subtitle: { color: "#64748b", fontSize: 14, fontWeight: "500", marginTop: 6 },
   status: { color: "#64748b", fontSize: 13, marginTop: 4, fontWeight: "500" },
   hint: { color: "#64748b", fontSize: 12, marginTop: 2 },
@@ -103,16 +104,13 @@ export const styles = StyleSheet.create({
   
   // Inputs
   input: {
-    backgroundColor: "#f8fafc",
-    borderColor: "#dbe4ef",
-    borderRadius: 12,
-    borderWidth: 1,
-    minHeight: 54,
+    backgroundColor: "#2A2535",
+    borderRadius: 28,
+    minHeight: 56,
     paddingHorizontal: 16,
     paddingVertical: 12,
     fontSize: 16,
-    color: "#0f172a",
-    fontWeight: "500"
+    color: "white",
   },
   inputFocused: {
     borderColor: "#3b82f6",
@@ -125,13 +123,13 @@ export const styles = StyleSheet.create({
   
   // Buttons
   button: {
-    backgroundColor: "#0369a1",
-    borderRadius: 12,
+    backgroundColor: colors.primary,
+    borderRadius: 28,
     paddingVertical: 14,
     paddingHorizontal: 16,
     alignItems: "center",
     justifyContent: "center",
-    minHeight: 54
+    height: 56
   },
   buttonText: {
     color: "white",
@@ -164,7 +162,7 @@ export const styles = StyleSheet.create({
   half: { flex: 1 },
   
   // Links
-  link: { color: "#0c4a6e", fontSize: 15, fontWeight: "700", marginTop: 12 },
+  link: { color: colors.yellow, fontSize: 15, fontWeight: "700", marginTop: 12 },
   
   // Video container
   videoContainer: {
