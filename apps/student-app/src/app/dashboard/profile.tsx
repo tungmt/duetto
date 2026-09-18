@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Alert, KeyboardAvoidingView, Platform, ScrollView, View } from "react-native";
+import { Alert, KeyboardAvoidingView, Platform, Pressable, ScrollView, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { api } from "../../actions/api";
 import nav from "../../actions/navigation";
@@ -8,15 +8,48 @@ import { styles } from "../../actions/styles";
 import AppLogo from "../../components/AppLogo";
 import Badge from "../../components/Badge";
 import Button from "../../components/Button";
-import FormInput from "../../components/FormInput";
+import IconCircleButton from "../../components/IconCircleButton";
 import Text from "../../components/Text";
+import colors from "../../configs/colors";
+
+type MenuItem = {
+  icon: keyof typeof import("@expo/vector-icons").Ionicons.glyphMap;
+  title: string;
+  description: string;
+  onPress: () => void;
+};
+
+function MenuList({ items }: { items: MenuItem[] }) {
+  return (
+    <View style={[styles.card, { padding: 8, gap: 0 }]}>
+      {items.map((item, index) => (
+        <View key={item.title}>
+          <Pressable
+            style={({ pressed }) => [
+              { flexDirection: "row", alignItems: "center", gap: 12, paddingHorizontal: 10, paddingVertical: 12 },
+              pressed && { opacity: 0.7 }
+            ]}
+            onPress={item.onPress}
+          >
+            <IconCircleButton icon={item.icon} size={38} style={{ backgroundColor: colors.inputBg }} />
+            <View style={{ flex: 1 }}>
+              <Text style={styles.title}>{item.title}</Text>
+              <Text style={[styles.status, { marginTop: 2 }]}>{item.description}</Text>
+            </View>
+            <IconCircleButton icon="chevron-forward" size={28} style={{ backgroundColor: "transparent", borderWidth: 0 }} />
+          </Pressable>
+          {index < items.length - 1 ? (
+            <View style={{ height: 1, backgroundColor: colors.borderColor, marginLeft: 58 }} />
+          ) : null}
+        </View>
+      ))}
+    </View>
+  );
+}
 
 export default function ProfileScreen({ navigation }: any) {
   const insets = useSafeAreaInsets();
   const [profile, setProfile] = useState<{ displayName?: string; learningGoal?: string } | null>(null);
-  const [currentPassword, setCurrentPassword] = useState("");
-  const [newPassword, setNewPassword] = useState("");
-  const [loading, setLoading] = useState(false);
 
   async function refresh() {
     try {
@@ -24,27 +57,6 @@ export default function ProfileScreen({ navigation }: any) {
       setProfile(data.profile);
     } catch (error) {
       // Handle error
-    }
-  }
-
-  async function updatePassword() {
-    if (!currentPassword.trim() || !newPassword.trim()) {
-      Alert.alert("Missing info", "Please enter both passwords.");
-      return;
-    }
-    setLoading(true);
-    try {
-      await api("/api/auth/update-password", {
-        method: "POST",
-        body: JSON.stringify({ currentPassword, newPassword })
-      });
-      Alert.alert("Success", "Password updated successfully.");
-      setCurrentPassword("");
-      setNewPassword("");
-    } catch (error) {
-      Alert.alert("Error", error instanceof Error ? error.message : "Could not update password");
-    } finally {
-      setLoading(false);
     }
   }
 
@@ -123,38 +135,38 @@ export default function ProfileScreen({ navigation }: any) {
               />
             </View>
 
-            <View style={styles.card}>
-              <Text style={styles.sectionTitle}>Change Password</Text>
-              <Text style={[styles.status, { marginTop: -4 }]}>Use your current password to set a new one.</Text>
+            <View style={{ gap: 10 }}>
+              <Text style={styles.sectionLabel}>Security</Text>
+              <MenuList
+                items={[
+                  {
+                    icon: "lock-closed-outline",
+                    title: "Change Password",
+                    description: "Keep your account secure",
+                    onPress: () => navigation.navigate("UpdatePassword")
+                  }
+                ]}
+              />
+            </View>
 
-              <View style={{ gap: 14 }}>
-                <FormInput
-                  label="Current Password"
-                  icon="lock-closed-outline"
-                  isPassword
-                  value={currentPassword}
-                  onChangeText={setCurrentPassword}
-                  placeholder="Enter current password"
-                  editable={!loading}
-                />
-
-                <FormInput
-                  label="New Password"
-                  icon="sparkles-outline"
-                  isPassword
-                  value={newPassword}
-                  onChangeText={setNewPassword}
-                  placeholder="Enter new password"
-                  editable={!loading}
-                />
-
-                <Button
-                  title={loading ? "Updating..." : "Update Password"}
-                  icon="arrow-forward"
-                  onPress={updatePassword}
-                  loading={loading}
-                />
-              </View>
+            <View style={{ gap: 10 }}>
+              <Text style={styles.sectionLabel}>Resources</Text>
+              <MenuList
+                items={[
+                  {
+                    icon: "headset-outline",
+                    title: "Contact Us",
+                    description: "Need help? Reach our support team",
+                    onPress: () => navigation.navigate("ContactUs")
+                  },
+                  {
+                    icon: "shield-checkmark-outline",
+                    title: "Privacy Policy",
+                    description: "How we collect and protect your data",
+                    onPress: () => navigation.navigate("PrivacyPolicy")
+                  }
+                ]}
+              />
             </View>
 
             <View style={styles.card}>
