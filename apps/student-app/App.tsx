@@ -19,6 +19,9 @@ import ChallengeDetailScreen from "./src/app/dashboard/challenge-detail";
 import SubmissionsScreen from "./src/app/dashboard/submissions";
 import SubmissionDetailScreen from "./src/app/dashboard/submission-detail";
 import ProfileScreen from "./src/app/dashboard/profile";
+import UpdatePasswordScreen from "./src/app/dashboard/update-password";
+import ContactUsScreen from "./src/app/dashboard/contact-us";
+import PrivacyPolicyScreen from "./src/app/dashboard/privacy-policy";
 import TeacherDetailScreen from "./src/app/dashboard/teacher-detail";
 import FloatingTabBar from "./src/components/FloatingTabBar";
 
@@ -100,6 +103,21 @@ function AppStack() {
         name="UpdateProfileFromDashboard" 
         component={UpdateProfileScreen}
         options={{ title: "Update Profile" }}
+      />
+      <Stack.Screen
+        name="UpdatePassword"
+        component={UpdatePasswordScreen}
+        options={{ title: "Change Password" }}
+      />
+      <Stack.Screen
+        name="ContactUs"
+        component={ContactUsScreen}
+        options={{ title: "Contact Us" }}
+      />
+      <Stack.Screen
+        name="PrivacyPolicy"
+        component={PrivacyPolicyScreen}
+        options={{ title: "Privacy Policy" }}
       />
     </Stack.Navigator>
   );

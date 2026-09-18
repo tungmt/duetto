@@ -115,11 +115,11 @@ export default function ProfileScreen() {
   }
 
   function openPrivacyPolicy() {
-    Alert.alert("Privacy Policy", "Privacy Policy page will be available soon.");
+    navigation.navigate("PrivacyPolicy");
   }
 
-  function openSupport() {
-    Alert.alert("Support", "Support page will be available soon.");
+  function openContactUs() {
+    navigation.navigate("ContactUs");
   }
 
   return (
@@ -220,9 +220,9 @@ export default function ProfileScreen() {
                 },
                 {
                   icon: "headset-outline",
-                  title: "Support",
-                  description: "Need help? Contact our support team",
-                  onPress: openSupport
+                  title: "Contact Us",
+                  description: "Need help? Reach our support team",
+                  onPress: openContactUs
                 }
               ]}
             />

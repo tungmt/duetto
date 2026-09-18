@@ -19,6 +19,8 @@ import ChallengesScreen from "./src/app/dashboard/challenges";
 import ClassesScreen from "./src/app/dashboard/classes";
 import ProfileScreen from "./src/app/dashboard/profile";
 import UpdatePasswordScreen from "./src/app/dashboard/update-password";
+import ContactUsScreen from "./src/app/dashboard/contact-us";
+import PrivacyPolicyScreen from "./src/app/dashboard/privacy-policy";
 import ClassDetailScreen from "./src/app/dashboard/class-detail";
 import StudentDetailScreen from "./src/app/dashboard/student-detail";
 import CreateStudentScreen from "./src/app/dashboard/create-student";
@@ -118,6 +120,16 @@ function AppStack() {
         name="UpdatePassword" 
         component={UpdatePasswordScreen}
         options={{ title: "Change Password" }}
+      />
+      <Stack.Screen
+        name="ContactUs"
+        component={ContactUsScreen}
+        options={{ title: "Contact Us" }}
+      />
+      <Stack.Screen
+        name="PrivacyPolicy"
+        component={PrivacyPolicyScreen}
+        options={{ title: "Privacy Policy" }}
       />
       <Stack.Screen
         name="ClassDetail"
