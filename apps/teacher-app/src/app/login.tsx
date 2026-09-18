@@ -1,13 +1,19 @@
 import { useNavigation } from "@react-navigation/native";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { useState } from "react";
-import { Alert, KeyboardAvoidingView, Platform, Pressable, ScrollView, Text, TextInput, View } from "react-native";
-import { Ionicons } from "@expo/vector-icons";
+import { Alert, KeyboardAvoidingView, Platform, Pressable, ScrollView, View } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { ApiError, api } from "../actions/api";
 import nav from "../actions/navigation";
 import { saveSession } from "../actions/session";
 import { styles } from "../actions/styles";
-import {useSafeAreaInsets} from "react-native-safe-area-context";
+import colors from "../configs/colors";
+import Text from "../components/Text";
+import AppLogo from "../components/AppLogo";
+import Badge from "../components/Badge";
+import Button from "../components/Button";
+import FormInput from "../components/FormInput";
+import IconCircleButton from "../components/IconCircleButton";
 
 type LoginScreenNavigationProp = NativeStackNavigationProp<any, "Login">;
 
@@ -16,7 +22,6 @@ export default function LoginScreen() {
   const insets = useSafeAreaInsets();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
 
   async function login() {
@@ -65,94 +70,62 @@ export default function LoginScreen() {
   }
 
   return (
-    <View style={[styles.safe]}>
+    <View style={styles.safe}>
       <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : "height"} style={{ flex: 1 }}>
         <ScrollView contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
-          <View
-            style={[
-              styles.heroCard,
-              {
-                marginBottom: 16,
-                paddingTop: insets.top + 16,
-                paddingHorizontal: 16,
-                paddingBottom: 16
-              }
-            ]}
-          >
-            <View style={styles.heroTopRow}>
-              <Text style={styles.heroTitle}>Welcome Back</Text>
+          <View style={{ paddingHorizontal: 20, paddingTop: insets.top + 12 }}>
+            <View style={{ flexDirection: "row", alignItems: "center", justifyContent: navigation.canGoBack() ? "space-between" : "flex-end", marginBottom: 20 }}>
+              {navigation.canGoBack() ? (
+                <IconCircleButton icon="arrow-back" onPress={() => navigation.goBack()} />
+              ) : null}
+              <Badge label="Educator Access" tone="cyan" />
             </View>
-            <Text style={styles.heroEyebrow}>Teacher Login</Text>
-            <Text style={styles.heroSubtitle}>Sign in to your teacher account.</Text>
-          </View>
 
-          <View style={{ gap: 12, paddingHorizontal: 16 }}>
-            <View>
-              <Text style={[styles.title, { marginBottom: 8 }]}>Email</Text>
-              <TextInput
+            <AppLogo />
+
+            <Text style={[styles.heading, { marginTop: 20, marginBottom: 6 }]}>Welcome back!</Text>
+            <Text style={[styles.subheading, { marginBottom: 28 }]}>
+              Sign in to manage your classes and review student duets.
+            </Text>
+
+            <View style={{ gap: 18 }}>
+              <FormInput
+                label="Email"
+                icon="mail-outline"
                 value={email}
                 onChangeText={setEmail}
                 placeholder="teacher@example.com"
-                placeholderTextColor="#9ca3af"
                 autoCapitalize="none"
                 keyboardType="email-address"
                 editable={!loading}
-                style={styles.input}
               />
-            </View>
 
-            <View>
-              <Text style={[styles.title, { marginBottom: 8 }]}>Password</Text>
-              <View style={{ flexDirection: "row", alignItems: "center", position: "relative" }}>
-                <TextInput
+              <View>
+                <FormInput
+                  label="Password"
+                  icon="lock-closed-outline"
+                  isPassword
                   value={password}
                   onChangeText={setPassword}
                   placeholder="Enter your password"
-                  placeholderTextColor="#9ca3af"
-                  secureTextEntry={!showPassword}
                   editable={!loading}
-                  style={[styles.input, { flex: 1, paddingRight: 48 }]}
                 />
-                <Pressable
-                  onPress={() => setShowPassword(!showPassword)}
-                  disabled={loading}
-                  style={({ pressed }) => ({
-                    position: "absolute",
-                    right: 12,
-                    padding: 8,
-                    opacity: pressed ? 0.6 : 1
-                  })}
-                >
-                  <Ionicons
-                    name={showPassword ? "eye" : "eye-off"}
-                    size={20}
-                    color="#64748b"
-                  />
+                <Pressable onPress={() => navigation.navigate("ResetPassword")} style={{ alignSelf: "flex-end", marginTop: 10 }}>
+                  <Text style={{ color: colors.yellow, fontWeight: "700", fontSize: 13 }}>Forgot Password?</Text>
                 </Pressable>
               </View>
+
+              <Button title="Log in" icon="arrow-forward" onPress={login} loading={loading} style={{ marginTop: 4 }} />
+
+              <Button
+                title="Create a new account"
+                variant="secondary"
+                onPress={() => navigation.navigate("Register")}
+              />
             </View>
-
-            <Pressable
-              style={[styles.button, loading && styles.buttonDisabled]}
-              onPress={login}
-              disabled={loading}
-            >
-              <Text style={styles.buttonText}>{loading ? "Signing in..." : "Sign In"}</Text>
-            </Pressable>
-          </View>
-
-          <View style={{ marginTop: 24, gap: 12, paddingHorizontal: 16 }}>
-            <Pressable style={styles.buttonSecondary} onPress={() => navigation.navigate("Register")}>
-              <Text style={styles.buttonSecondaryText}>Create a new account</Text>
-            </Pressable>
-            <Pressable onPress={() => navigation.navigate("ResetPassword")}>
-              <Text style={styles.link}>Forgot your password?</Text>
-            </Pressable>
           </View>
         </ScrollView>
       </KeyboardAvoidingView>
     </View>
   );
 }
-
-

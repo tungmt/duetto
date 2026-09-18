@@ -10,6 +10,7 @@ import { api } from "../../actions/api";
 import nav from "../../actions/navigation";
 import { styles } from "../../actions/styles";
 import { ExportManager } from "../../actions/export-manager";
+import colors from "../../configs/colors";
 
 type AnswerPeriod = { startMs: number; endMs: number };
 
@@ -778,9 +779,9 @@ export default function ChallengeDetailScreen({ navigation, route }: any) {
             {orchestrateState === "duetting" || orchestrateState === "recording" ? (
               <View style={{ marginTop: 12, gap: 8 }}>
                 {!cameraPermission ? (
-                  <View style={{ backgroundColor: "rgba(239,68,68,0.1)", borderRadius: 12, padding: 12, gap: 8 }}>
+                  <View style={{ backgroundColor: "rgba(239,68,68,0.12)", borderRadius: 12, padding: 12, gap: 8 }}>
                     <Text style={{ color: "#ef4444", fontSize: 14, fontWeight: "700" }}>Camera Permission Required</Text>
-                    <Text style={{ color: "#666", fontSize: 12 }}>Enable camera access in your device settings to record a duet.</Text>
+                    <Text style={{ color: colors.textSecondary, fontSize: 12 }}>Enable camera access in your device settings to record a duet.</Text>
                     <Pressable
                       style={[styles.button]}
                       onPress={async () => {
@@ -796,12 +797,12 @@ export default function ChallengeDetailScreen({ navigation, route }: any) {
                     style={{
                       flexDirection: "row",
                       height: 320,
-                      borderRadius: 12,
+                      borderRadius: 16,
                       overflow: "hidden",
                       backgroundColor: "#000000"
                     }}
                   >
-                    <View style={{ flex: 1, backgroundColor: "#1e293b", position: "relative" }}>
+                    <View style={{ flex: 1, backgroundColor: colors.darkBg, position: "relative" }}>
                       <CameraView ref={cameraRef} style={{ flex: 1 }} facing="front" onCameraReady={onCameraReady} />
                       <View
                         style={{
@@ -814,7 +815,7 @@ export default function ChallengeDetailScreen({ navigation, route }: any) {
                           borderRadius: 6
                         }}
                       >
-                        <Text style={{ color: "#ffffff", fontSize: 10, fontWeight: "600" }}>Your Camera</Text>
+                        <Text style={{ color: colors.textPrimary, fontSize: 10, fontWeight: "600" }}>Your Camera</Text>
                       </View>
                       <View
                         style={{
@@ -824,20 +825,20 @@ export default function ChallengeDetailScreen({ navigation, route }: any) {
                           flexDirection: "row",
                           alignItems: "center",
                           gap: 4,
-                          backgroundColor: "rgba(239,68,68,0.8)",
+                          backgroundColor: "rgba(239,68,68,0.85)",
                           paddingHorizontal: 8,
                           paddingVertical: 4,
                           borderRadius: 6
                         }}
                       >
-                        <Text style={{ fontSize: 10, color: "#ffffff" }}>🔴</Text>
-                        <Text style={{ color: "#ffffff", fontSize: 10, fontWeight: "600" }}>
+                        <Text style={{ fontSize: 10, color: colors.textPrimary }}>🔴</Text>
+                        <Text style={{ color: colors.textPrimary, fontSize: 10, fontWeight: "600" }}>
                           {orchestrateState === "recording" ? "Recording" : isCameraReady ? "Ready" : "Loading"}
                         </Text>
                       </View>
                     </View>
 
-                    <View style={{ flex: 1, backgroundColor: "#1e293b", position: "relative" }}>
+                    <View style={{ flex: 1, backgroundColor: colors.darkBg, position: "relative" }}>
                       <VideoView
                         player={challengeVideoPlayer}
                         style={{ flex: 1 }}
@@ -856,7 +857,7 @@ export default function ChallengeDetailScreen({ navigation, route }: any) {
                           borderRadius: 6
                         }}
                       >
-                        <Text style={{ color: "#ffffff", fontSize: 10, fontWeight: "600" }}>Challenge</Text>
+                        <Text style={{ color: colors.textPrimary, fontSize: 10, fontWeight: "600" }}>Challenge</Text>
                       </View>
                     </View>
                   </View>
@@ -918,7 +919,7 @@ export default function ChallengeDetailScreen({ navigation, route }: any) {
                     style={{
                       height: 24,
                       borderRadius: 999,
-                      backgroundColor: "#e2e8f0",
+                      backgroundColor: colors.inputBg,
                       overflow: "hidden",
                       justifyContent: "center",
                       position: "relative"
@@ -931,7 +932,7 @@ export default function ChallengeDetailScreen({ navigation, route }: any) {
                         top: 0,
                         bottom: 0,
                         width: `${progressPct}%`,
-                        backgroundColor: "#7dd3fc"
+                        backgroundColor: colors.secondary
                       }}
                     />
 
@@ -947,9 +948,9 @@ export default function ChallengeDetailScreen({ navigation, route }: any) {
                                 top: 5,
                                 bottom: 5,
                                 borderRadius: 999,
-                                backgroundColor: "rgba(2, 132, 199, 0.35)",
+                                backgroundColor: "rgba(255,79,134,0.35)",
                                 borderWidth: 1,
-                                borderColor: "rgba(2, 132, 199, 0.65)",
+                                borderColor: "rgba(255,79,134,0.65)",
                                 left: `${leftPct}%`,
                                 width: `${widthPct}%`
                               }}
@@ -964,17 +965,17 @@ export default function ChallengeDetailScreen({ navigation, route }: any) {
                         width: 10,
                         height: 10,
                         borderRadius: 5,
-                        backgroundColor: "#0369a1",
+                        backgroundColor: colors.primary,
                         borderWidth: 1,
-                        borderColor: "#ffffff",
+                        borderColor: colors.textPrimary,
                         top: 7,
                         left: thumbLeftPx
                       }}
                     />
                   </Pressable>
                   <View style={{ flexDirection: "row", justifyContent: "space-between", marginTop: 6 }}>
-                    <Text style={{ color: "#64748b", fontSize: 12, fontWeight: "700" }}>{formatMs(videoPositionMs)}</Text>
-                    <Text style={{ color: "#64748b", fontSize: 12, fontWeight: "700" }}>{formatMs(videoDurationMs)}</Text>
+                    <Text style={{ color: colors.textTertiary, fontSize: 12, fontWeight: "700" }}>{formatMs(videoPositionMs)}</Text>
+                    <Text style={{ color: colors.textTertiary, fontSize: 12, fontWeight: "700" }}>{formatMs(videoDurationMs)}</Text>
                   </View>
                 </View>
                 {isMuted ? (
@@ -1007,10 +1008,10 @@ export default function ChallengeDetailScreen({ navigation, route }: any) {
                     borderRadius: 10,
                     padding: 12,
                     backgroundColor: orchestrateState === "recording"
-                      ? "rgba(239,68,68,0.1)"
+                      ? "rgba(239,68,68,0.12)"
                       : orchestrateState === "done"
-                        ? "rgba(34,197,94,0.1)"
-                        : "#f0f9ff"
+                        ? "rgba(0,212,170,0.12)"
+                        : colors.cardBg
                   }}
                 >
                   <Text
@@ -1020,8 +1021,8 @@ export default function ChallengeDetailScreen({ navigation, route }: any) {
                       color: orchestrateState === "recording"
                         ? "#ef4444"
                         : orchestrateState === "done"
-                          ? "#16a34a"
-                          : "#0369a1"
+                          ? colors.success
+                          : colors.secondary
                     }}
                   >
                     {periodStatusLabel()}
@@ -1043,15 +1044,15 @@ export default function ChallengeDetailScreen({ navigation, route }: any) {
                           flexDirection: "row",
                           alignItems: "center",
                           gap: 10,
-                          backgroundColor: isActive ? "rgba(239,68,68,0.08)" : isDone ? "rgba(34,197,94,0.08)" : "#f8fafc",
+                          backgroundColor: isActive ? "rgba(239,68,68,0.1)" : isDone ? "rgba(0,212,170,0.1)" : colors.cardBg,
                           borderRadius: 10,
                           padding: 10,
                           borderWidth: 1,
-                          borderColor: isActive ? "#ef4444" : isDone ? "#86efac" : "#dbe4ef"
+                          borderColor: isActive ? "#ef4444" : isDone ? colors.success : colors.borderColor
                         }}
                       >
                         <Text style={{ fontSize: 16 }}>{isActive ? "🎙" : isDone ? "✅" : "○"}</Text>
-                        <Text style={{ flex: 1, color: "#0f172a", fontWeight: "600", fontSize: 13 }}>
+                        <Text style={{ flex: 1, color: colors.textPrimary, fontWeight: "600", fontSize: 13 }}>
                           Period {index + 1}: {formatMs(period.startMs)} → {formatMs(period.endMs)}
                         </Text>
                       </View>
@@ -1075,7 +1076,7 @@ export default function ChallengeDetailScreen({ navigation, route }: any) {
                           contentFit="contain"
                           nativeControls
                         />
-                        <Text style={{ color: "#64748b", fontSize: 12, fontStyle: "italic" }}>
+                        <Text style={{ color: colors.textTertiary, fontSize: 12, fontStyle: "italic" }}>
                           This merged video includes your answer audio and the original challenge audio.
                         </Text>
                       </View>
@@ -1094,7 +1095,7 @@ export default function ChallengeDetailScreen({ navigation, route }: any) {
                             backgroundColor: "#000000"
                           }}
                         >
-                          <View style={{ flex: 1, backgroundColor: "#1e293b", position: "relative" }}>
+                          <View style={{ flex: 1, backgroundColor: colors.darkBg, position: "relative" }}>
                             <VideoView
                               player={previewChallengePlayer}
                               style={{ flex: 1 }}
@@ -1113,11 +1114,11 @@ export default function ChallengeDetailScreen({ navigation, route }: any) {
                                 borderRadius: 6
                               }}
                             >
-                              <Text style={{ color: "#ffffff", fontSize: 10, fontWeight: "600" }}>Challenge</Text>
+                              <Text style={{ color: colors.textPrimary, fontSize: 10, fontWeight: "600" }}>Challenge</Text>
                             </View>
                           </View>
 
-                          <View style={{ flex: 1, backgroundColor: "#1e293b", position: "relative" }}>
+                          <View style={{ flex: 1, backgroundColor: colors.darkBg, position: "relative" }}>
                             <VideoView
                               player={studentPreviewPlayer}
                               style={{ flex: 1 }}
@@ -1136,11 +1137,11 @@ export default function ChallengeDetailScreen({ navigation, route }: any) {
                                 borderRadius: 6
                               }}
                             >
-                              <Text style={{ color: "#ffffff", fontSize: 10, fontWeight: "600" }}>Your Response</Text>
+                              <Text style={{ color: colors.textPrimary, fontSize: 10, fontWeight: "600" }}>Your Response</Text>
                             </View>
                           </View>
                         </View>
-                        <Text style={{ color: "#64748b", fontSize: 12, fontStyle: "italic" }}>
+                        <Text style={{ color: colors.textTertiary, fontSize: 12, fontStyle: "italic" }}>
                           Your merged duet video is generated automatically after recording finishes
                         </Text>
                       </View>
@@ -1172,10 +1173,10 @@ export default function ChallengeDetailScreen({ navigation, route }: any) {
                     </Pressable>
                     {loading && uploadProgress != null ? (
                       <View>
-                        <View style={{ width: "100%", height: 8, borderRadius: 999, backgroundColor: "#dbe4ef", overflow: "hidden" }}>
-                          <View style={{ width: `${Math.max(2, Math.round(uploadProgress * 100))}%`, height: "100%", backgroundColor: "#0369a1" }} />
+                        <View style={{ width: "100%", height: 8, borderRadius: 999, backgroundColor: colors.borderColor, overflow: "hidden" }}>
+                          <View style={{ width: `${Math.max(2, Math.round(uploadProgress * 100))}%`, height: "100%", backgroundColor: colors.secondary }} />
                         </View>
-                        <Text style={{ color: "#64748b", fontSize: 12, marginTop: 6, fontWeight: "600" }}>Uploading answer segments…</Text>
+                        <Text style={{ color: colors.textTertiary, fontSize: 12, marginTop: 6, fontWeight: "600" }}>Uploading answer segments…</Text>
                       </View>
                     ) : null}
                     <Pressable style={styles.buttonSecondary} onPress={resetOrchestration}>
@@ -1190,7 +1191,7 @@ export default function ChallengeDetailScreen({ navigation, route }: any) {
                 <Text style={styles.status}>This challenge has no defined answer periods. Record manually below.</Text>
                 <View style={{ flexDirection: "row", gap: 12 }}>
                   <Pressable
-                    style={[styles.button, { flex: 1, backgroundColor: orchestrateState === "recording" ? "#ef4444" : "#0369a1" }]}
+                    style={[styles.button, { flex: 1, backgroundColor: orchestrateState === "recording" ? "#ef4444" : colors.secondary }]}
                     onPress={async () => {
                       if (orchestrateState === "recording") {
                         await stopPeriodRecording();
@@ -1226,10 +1227,10 @@ export default function ChallengeDetailScreen({ navigation, route }: any) {
                     </Pressable>
                     {loading && uploadProgress != null ? (
                       <View>
-                        <View style={{ width: "100%", height: 8, borderRadius: 999, backgroundColor: "#dbe4ef", overflow: "hidden" }}>
-                          <View style={{ width: `${Math.max(2, Math.round(uploadProgress * 100))}%`, height: "100%", backgroundColor: "#0369a1" }} />
+                        <View style={{ width: "100%", height: 8, borderRadius: 999, backgroundColor: colors.borderColor, overflow: "hidden" }}>
+                          <View style={{ width: `${Math.max(2, Math.round(uploadProgress * 100))}%`, height: "100%", backgroundColor: colors.secondary }} />
                         </View>
-                        <Text style={{ color: "#64748b", fontSize: 12, marginTop: 6, fontWeight: "600" }}>Uploading answer…</Text>
+                        <Text style={{ color: colors.textTertiary, fontSize: 12, marginTop: 6, fontWeight: "600" }}>Uploading answer…</Text>
                       </View>
                     ) : null}
                     <Pressable style={styles.buttonSecondary} onPress={resetOrchestration}>
@@ -1248,7 +1249,7 @@ export default function ChallengeDetailScreen({ navigation, route }: any) {
                 {challenge.teacher?.teacherProfile?.avatarUrl ? (
                   <Image
                     source={{ uri: challenge.teacher.teacherProfile.avatarUrl }}
-                    style={{ width: 56, height: 56, borderRadius: 28, backgroundColor: "#cbd5e1" }}
+                    style={{ width: 56, height: 56, borderRadius: 28, backgroundColor: colors.borderColor }}
                   />
                 ) : (
                   <View
@@ -1256,12 +1257,12 @@ export default function ChallengeDetailScreen({ navigation, route }: any) {
                       width: 56,
                       height: 56,
                       borderRadius: 28,
-                      backgroundColor: "#0369a1",
+                      backgroundColor: colors.secondary,
                       alignItems: "center",
                       justifyContent: "center"
                     }}
                   >
-                    <Text style={{ color: "#ffffff", fontSize: 20, fontWeight: "800" }}>
+                    <Text style={{ color: colors.textPrimary, fontSize: 20, fontWeight: "800" }}>
                       {getInitials(challenge.teacher.teacherProfile?.displayName || challenge.teacher.name || "Teacher")}
                     </Text>
                   </View>
@@ -1284,4 +1285,3 @@ export default function ChallengeDetailScreen({ navigation, route }: any) {
     </View>
   );
 }
-

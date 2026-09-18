@@ -4,9 +4,27 @@ import { VideoView, useVideoPlayer } from "expo-video";
 import { useFocusEffect, useNavigation, useRoute } from "@react-navigation/native";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Alert, GestureResponderEvent, KeyboardAvoidingView, LayoutChangeEvent, PanResponder, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
+import {
+  Alert,
+  GestureResponderEvent,
+  KeyboardAvoidingView,
+  LayoutChangeEvent,
+  PanResponder,
+  Platform,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  View
+} from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { api } from "../../actions/api";
+import { styles } from "../../actions/styles";
+import Badge from "../../components/Badge";
+import Button from "../../components/Button";
+import FormInput from "../../components/FormInput";
+import IconCircleButton from "../../components/IconCircleButton";
+import Text from "../../components/Text";
+import colors from "../../configs/colors";
 
 type ChallengeDetailNavigationProp = NativeStackNavigationProp<any, "ChallengeDetail">;
 type ChallengeDetailRoute = { params?: { challengeId?: string } };
@@ -35,14 +53,46 @@ type Challenge = {
 
 const MIN_PERIOD_MS = 500;
 
-function getStatusChipColors(status: Challenge["status"]) {
+function getChallengeTone(status: Challenge["status"]): "cyan" | "neutral" | "pink" | "yellow" {
   if (status === "PUBLISHED") {
-    return { background: "#dcfce7", text: "#166534" };
+    return "cyan";
   }
+
   if (status === "DRAFT") {
-    return { background: "#fef9c3", text: "#854d0e" };
+    return "yellow";
   }
-  return { background: "#e2e8f0", text: "#334155" };
+
+  return "neutral";
+}
+
+function getSubmissionTone(status?: string): "cyan" | "neutral" | "pink" | "yellow" {
+  const normalized = status?.trim().toLowerCase();
+
+  if (normalized === "reviewed" || normalized === "graded" || normalized === "approved") {
+    return "cyan";
+  }
+
+  if (normalized === "pending") {
+    return "yellow";
+  }
+
+  if (normalized === "rejected") {
+    return "pink";
+  }
+
+  return "neutral";
+}
+
+function formatStatusLabel(status?: string) {
+  if (!status) {
+    return "Unknown";
+  }
+
+  return status
+    .toLowerCase()
+    .split("_")
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(" ");
 }
 
 export default function ChallengeDetailScreen() {
@@ -366,307 +416,353 @@ export default function ChallengeDetailScreen() {
     ? Math.round((selectedPeriod.endMs / videoDurationMs) * timelineWidth)
     : 0;
 
+  const renderPlaybackControls = () => (
+    <>
+      <View style={localStyles.playerControlsRow}>
+        <Pressable style={localStyles.controlButton} onPress={() => seekBy(-10000)}>
+          <Text style={localStyles.controlButtonText}>-10s</Text>
+        </Pressable>
+        <Pressable style={[localStyles.controlButton, localStyles.playButton]} onPress={togglePlayback}>
+          <Text style={localStyles.controlButtonText}>{isVideoPlaying ? "Pause" : "Play"}</Text>
+        </Pressable>
+        <Pressable style={localStyles.controlButton} onPress={() => seekBy(10000)}>
+          <Text style={localStyles.controlButtonText}>+10s</Text>
+        </Pressable>
+      </View>
+
+      <View style={localStyles.timeRow}>
+        <Text style={localStyles.timeText}>{formatMs(videoPositionMs)}</Text>
+        <Text style={localStyles.timeText}>{formatMs(videoDurationMs)}</Text>
+      </View>
+    </>
+  );
+
   return (
-    <View style={localStyles.safe}>
+    <View style={styles.safe}>
       <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : "height"} style={{ flex: 1 }}>
-        <ScrollView contentContainerStyle={localStyles.content} keyboardShouldPersistTaps="handled">
-          <View
-            style={[
-              localStyles.heroCard,
-              {
-                marginHorizontal: -16,
-                marginTop: -16,
-                paddingTop: insets.top + 16,
-                paddingHorizontal: 16,
-                paddingBottom: 16,
-                backgroundColor: "#0f2742"
-              }
-            ]}
-          >
-            <View style={localStyles.heroTopRow}>
-              <Pressable style={localStyles.backButton} onPress={() => navigation.goBack()}>
-                <Text style={localStyles.backButtonText}>← Back</Text>
-              </Pressable>
-              <Text style={localStyles.heroTitle}>Manage Challenge</Text>
-            </View>
-            <Text style={localStyles.heroEyebrow}>Challenge Workspace</Text>
-            <Text style={localStyles.heroSubtitle}>Edit video details, answer periods, and submissions.</Text>
-          </View>
-
-          {loading ? (
-            <View style={localStyles.centerState}>
-              <Text style={localStyles.centerStateText}>Loading challenge...</Text>
-            </View>
-          ) : !challenge ? (
-            <View style={localStyles.centerState}>
-              <Text style={localStyles.centerStateText}>Challenge not found.</Text>
-            </View>
-          ) : (
-            <>
-              <View style={localStyles.summaryCard}>
-                <View style={localStyles.summaryHead}>
-                  <Text style={localStyles.summaryTitle}>{challenge.title}</Text>
-                  <View style={[localStyles.statusChip, { backgroundColor: getStatusChipColors(challenge.status).background }]}>
-                    <Text style={[localStyles.statusChipText, { color: getStatusChipColors(challenge.status).text }]}>{challenge.status}</Text>
-                  </View>
-                </View>
-                <Text style={localStyles.summaryMeta}>Submissions: {challenge.submissions?.length ?? 0}</Text>
+        <ScrollView contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
+          <View style={{ paddingHorizontal: 20, paddingTop: insets.top + 12, paddingBottom: 24 }}>
+            <View
+              style={[
+                styles.heroCard,
+                {
+                  marginHorizontal: -20,
+                  marginTop: -12,
+                  paddingTop: insets.top + 16,
+                  paddingHorizontal: 16,
+                  paddingBottom: 16,
+                  marginBottom: 20
+                }
+              ]}
+            >
+              <View style={[styles.heroTopRow, { justifyContent: "space-between" }]}>
+                <IconCircleButton icon="arrow-back" onPress={() => navigation.goBack()} />
+                <Badge label="Challenge Workspace" tone="neutral" />
               </View>
+              <Text style={styles.heroTitle}>Manage Challenge</Text>
+              <Text style={styles.heroSubtitle}>Edit video details, define answer periods, and review student submissions.</Text>
+            </View>
 
-              <View style={localStyles.tabsWrap}>
-                <Pressable
-                  style={[localStyles.tabButton, activeTab === "general" && localStyles.tabButtonActive]}
-                  onPress={() => setActiveTab("general")}
-                >
-                  <Text style={[localStyles.tabButtonText, activeTab === "general" && localStyles.tabButtonTextActive]}>Video & Info</Text>
-                </Pressable>
-                <Pressable
-                  style={[localStyles.tabButton, activeTab === "periods" && localStyles.tabButtonActive]}
-                  onPress={() => setActiveTab("periods")}
-                >
-                  <Text style={[localStyles.tabButtonText, activeTab === "periods" && localStyles.tabButtonTextActive]}>Answer Periods</Text>
-                </Pressable>
-                <Pressable
-                  style={[localStyles.tabButton, activeTab === "answers" && localStyles.tabButtonActive]}
-                  onPress={() => setActiveTab("answers")}
-                >
-                  <Text style={[localStyles.tabButtonText, activeTab === "answers" && localStyles.tabButtonTextActive]}>Answer List</Text>
-                </Pressable>
+            {loading ? (
+              <View style={styles.emptyContainer}>
+                <Text style={styles.emptyText}>Loading challenge...</Text>
               </View>
-
-              {activeTab === "general" ? (
-                <View style={localStyles.panelCard}>
-                  <Text style={localStyles.blockTitle}>Challenge Video</Text>
-
-                  <View style={localStyles.videoFrame}>
-                    <VideoView
-                      player={videoPlayer}
-                      style={localStyles.video}
-                      contentFit="contain"
-                      nativeControls={false}
+            ) : !challenge ? (
+              <View style={[styles.card, styles.emptyContainer, { alignItems: "flex-start", gap: 12 }]}> 
+                <Badge label="Unavailable" tone="neutral" />
+                <Text style={styles.title}>Challenge not found.</Text>
+                <Text style={[styles.subtitle, { marginTop: 0 }]}>Go back and reopen this challenge from the dashboard.</Text>
+              </View>
+            ) : (
+              <View style={{ gap: 16 }}>
+                <View style={[styles.card, { gap: 16 }]}> 
+                  <View style={localStyles.summaryBadgeRow}>
+                    <Badge label={formatStatusLabel(challenge.status)} tone={getChallengeTone(challenge.status)} />
+                    <Badge
+                      label={`${challenge.submissions?.length ?? 0} Submission${(challenge.submissions?.length ?? 0) === 1 ? "" : "s"}`}
+                      tone="pink"
+                    />
+                    <Badge
+                      label={`${periods.length} Period${periods.length === 1 ? "" : "s"}`}
+                      tone="yellow"
                     />
                   </View>
-
-                  <View style={localStyles.playerControlsRow}>
-                    <Pressable style={localStyles.controlButton} onPress={() => seekBy(-10000)}>
-                      <Text style={localStyles.controlButtonText}>-10s</Text>
-                    </Pressable>
-                    <Pressable style={[localStyles.controlButton, localStyles.playButton]} onPress={togglePlayback}>
-                      <Text style={localStyles.controlButtonText}>{isVideoPlaying ? "Pause" : "Play"}</Text>
-                    </Pressable>
-                    <Pressable style={localStyles.controlButton} onPress={() => seekBy(10000)}>
-                      <Text style={localStyles.controlButtonText}>+10s</Text>
-                    </Pressable>
-                  </View>
-
-                  <View style={localStyles.timeRow}>
-                    <Text style={localStyles.timeText}>{formatMs(videoPositionMs)}</Text>
-                    <Text style={localStyles.timeText}>{formatMs(videoDurationMs)}</Text>
-                  </View>
-
-                  <Pressable style={localStyles.timelineTrack} onLayout={onTimelineLayout} onPress={onTimelinePress}>
-                    <View style={[localStyles.timelineProgress, { width: `${progressPct}%` }]} />
-                  </Pressable>
-
                   <View>
-                    <Text style={localStyles.label}>Title</Text>
-                    <TextInput
-                      value={title}
-                      onChangeText={setTitle}
-                      editable={!saving}
-                      placeholder="Challenge title"
-                      placeholderTextColor="#9ca3af"
-                      style={localStyles.input}
-                    />
+                    <Text style={styles.title}>{challenge.title}</Text>
+                    <Text style={styles.subtitle}>{challenge.description?.trim() || "Add a clear prompt and answer windows so students know exactly what to record."}</Text>
                   </View>
-
-                  <View>
-                    <Text style={localStyles.label}>Description</Text>
-                    <TextInput
-                      value={description}
-                      onChangeText={setDescription}
-                      editable={!saving}
-                      multiline
-                      numberOfLines={3}
-                      placeholder="Challenge description"
-                      placeholderTextColor="#9ca3af"
-                      style={[localStyles.input, localStyles.inputMultiline]}
-                    />
-                  </View>
-
-                  <Pressable style={[localStyles.primaryButton, saving && localStyles.buttonDisabled]} onPress={saveInfo} disabled={saving}>
-                    <Text style={localStyles.primaryButtonText}>{saving ? "Saving..." : "Save Challenge Info"}</Text>
-                  </Pressable>
-
-                  {challenge.status !== "PUBLISHED" ? (
-                    <Pressable
-                      style={[localStyles.secondaryButton, saving && localStyles.buttonDisabled]}
-                      onPress={() => setPublishStatus("PUBLISHED")}
-                      disabled={saving}
-                    >
-                      <Text style={localStyles.secondaryButtonText}>Publish Challenge</Text>
-                    </Pressable>
-                  ) : (
-                    <Pressable
-                      style={[localStyles.secondaryButton, saving && localStyles.buttonDisabled]}
-                      onPress={() => setPublishStatus("DRAFT")}
-                      disabled={saving}
-                    >
-                      <Text style={localStyles.secondaryButtonText}>Move Back To Draft</Text>
-                    </Pressable>
-                  )}
                 </View>
-              ) : activeTab === "periods" ? (
-                <View style={localStyles.panelCard}>
-                  <Text style={localStyles.blockTitle}>Answer Period Editor</Text>
-                  <Text style={localStyles.helpText}>
-                    Use the custom player below. Press Start Answer Period, then Stop Answer Period to create one range. Select a range and drag its handles on the timeline to fine-tune.
-                  </Text>
 
-                  <View style={localStyles.videoFrame}>
-                    <VideoView
-                      player={videoPlayer}
-                      style={localStyles.video}
-                      contentFit="contain"
-                      nativeControls={false}
-                    />
-                  </View>
-
-                  <View style={localStyles.playerControlsRow}>
-                    <Pressable style={localStyles.controlButton} onPress={() => seekBy(-10000)}>
-                      <Text style={localStyles.controlButtonText}>-10s</Text>
-                    </Pressable>
-                    <Pressable style={[localStyles.controlButton, localStyles.playButton]} onPress={togglePlayback}>
-                      <Text style={localStyles.controlButtonText}>{isVideoPlaying ? "Pause" : "Play"}</Text>
-                    </Pressable>
-                    <Pressable style={localStyles.controlButton} onPress={() => seekBy(10000)}>
-                      <Text style={localStyles.controlButtonText}>+10s</Text>
-                    </Pressable>
-                  </View>
-
-                  <View style={localStyles.timeRow}>
-                    <Text style={localStyles.timeText}>{formatMs(videoPositionMs)}</Text>
-                    <Text style={localStyles.timeText}>{formatMs(videoDurationMs)}</Text>
-                  </View>
-
-                  <Pressable style={localStyles.timelineTrack} onLayout={onTimelineLayout} onPress={onTimelinePress}>
-                    <View style={[localStyles.timelineProgress, { width: `${progressPct}%` }]} />
-
-                    {hasDuration
-                      ? periods.map((p, i) => {
-                        const leftPct = (p.startMs / videoDurationMs) * 100;
-                        const widthPct = Math.max(((p.endMs - p.startMs) / videoDurationMs) * 100, 0.75);
-                        const selected = i === selectedPeriodIndex;
-                        return (
-                          <Pressable
-                            key={`${p.startMs}-${p.endMs}-${i}`}
-                            style={[
-                              localStyles.periodBar,
-                              selected && localStyles.periodBarSelected,
-                              { left: `${leftPct}%`, width: `${widthPct}%` }
-                            ]}
-                            onPress={() => setSelectedPeriodIndex(i)}
-                          />
-                        );
-                      })
-                      : null}
-
-                    {selectedPeriod && hasDuration && timelineWidth > 0 ? (
-                      <>
-                        <View
-                          style={[localStyles.dragHandle, { left: Math.max(0, Math.min(selectedStartPx - 6, timelineWidth - 12)) }]}
-                          {...leftHandleResponder.panHandlers}
-                        />
-                        <View
-                          style={[localStyles.dragHandle, { left: Math.max(0, Math.min(selectedEndPx - 6, timelineWidth - 12)) }]}
-                          {...rightHandleResponder.panHandlers}
-                        />
-                      </>
-                    ) : null}
-                  </Pressable>
-
-                  <View style={localStyles.periodActionsRow}>
-                    <Pressable
-                      style={[localStyles.primaryButton, { flex: 1, backgroundColor: pendingStartMs === null ? "#0369a1" : "#64748b" }]}
-                      onPress={handleAnswerPeriodButton}
-                    >
-                      <Text style={localStyles.primaryButtonText}>
-                        {pendingStartMs === null ? "Start Answer Period" : "Stop Answer Period"}
-                      </Text>
-                    </Pressable>
-                  </View>
-
-                  <View style={localStyles.pendingBadge}>
-                    <Text style={localStyles.pendingBadgeText}>
-                      {pendingStartMs === null ? "Ready to mark a new period." : `Start marked at ${formatMs(pendingStartMs)}. Move video and press Stop Answer Period.`}
-                    </Text>
-                  </View>
-
-                  {periods.length > 0 ? (
-                    <View style={{ gap: 8 }}>
-                      <Text style={[localStyles.label, { marginBottom: 0 }]}>Defined Periods</Text>
-                      {periods.map((p, i) => (
-                        <Pressable
-                          key={`${p.startMs}-${p.endMs}-${i}`}
-                          style={[
-                            localStyles.periodRow,
-                            i === selectedPeriodIndex && localStyles.periodRowSelected
-                          ]}
-                          onPress={() => setSelectedPeriodIndex(i)}
-                        >
-                          <Text style={localStyles.periodRowText}>
-                            {i + 1}. {formatMs(p.startMs)} {">"} {formatMs(p.endMs)}
-                          </Text>
-                          <Pressable onPress={() => removePeriod(i)} style={{ paddingHorizontal: 10, paddingVertical: 6 }}>
-                            <Text style={{ color: "#ef4444", fontWeight: "800", fontSize: 14 }}>X</Text>
-                          </Pressable>
-                        </Pressable>
-                      ))}
-                    </View>
-                  ) : (
-                    <View style={localStyles.emptyPeriodsCard}>
-                      <Text style={localStyles.emptyPeriodsText}>No periods defined yet.</Text>
-                    </View>
-                  )}
-
-                  <Pressable
-                    style={[localStyles.primaryButton, savingPeriods && localStyles.buttonDisabled]}
-                    onPress={saveAnswerPeriods}
-                    disabled={savingPeriods}
-                  >
-                    <Text style={localStyles.primaryButtonText}>{savingPeriods ? "Saving..." : "Save Answer Periods"}</Text>
-                  </Pressable>
-                </View>
-              ) : (
-                <View>
-                  <Text style={localStyles.sectionTitle}>Answer Videos</Text>
-                  {sortedSubmissions.length === 0 ? (
-                    <View style={localStyles.answerRow}>
-                      <Text style={localStyles.answerMeta}>No answers submitted yet.</Text>
-                    </View>
-                  ) : (
-                    sortedSubmissions.map((submission) => (
+                <View style={localStyles.tabsWrap}>
+                  {([
+                    { key: "general", label: "Video & Info" },
+                    { key: "periods", label: "Answer Periods" },
+                    { key: "answers", label: "Answer List" }
+                  ] as { key: DetailTab; label: string }[]).map((tab) => {
+                    const isActive = activeTab === tab.key;
+                    return (
                       <Pressable
-                        key={submission.id}
-                        style={localStyles.answerRow}
-                        onPress={() =>
-                          navigation.navigate("SubmissionReview", {
-                            challengeId: challenge.id,
-                            submissionId: submission.id
-                          })
-                        }
+                        key={tab.key}
+                        style={[localStyles.tabButton, isActive && localStyles.tabButtonActive]}
+                        onPress={() => setActiveTab(tab.key)}
                       >
-                        <Text style={localStyles.answerName}>{submission.student?.name ?? "Student"}</Text>
-                        <Text style={localStyles.answerMeta}>Status: {submission.status}</Text>
-                        <Text style={localStyles.answerMeta}>Score: {submission.score ?? "Not graded"}</Text>
-                        <Text style={localStyles.answerLink}>Open answer review {">"}</Text>
+                        <Text style={[localStyles.tabButtonText, isActive && localStyles.tabButtonTextActive]}>{tab.label}</Text>
                       </Pressable>
-                    ))
-                  )}
+                    );
+                  })}
                 </View>
-              )}
-            </>
-          )}
+
+                {activeTab === "general" ? (
+                  <View style={[styles.card, { gap: 16 }]}> 
+                    <View style={localStyles.sectionHeader}>
+                      <Text style={styles.title}>Challenge Video</Text>
+                      <Badge label="Source Video" tone="cyan" />
+                    </View>
+
+                    <View style={localStyles.videoWrap}>
+                      <VideoView
+                        player={videoPlayer}
+                        style={localStyles.video}
+                        contentFit="contain"
+                        nativeControls={false}
+                      />
+                    </View>
+
+                    {renderPlaybackControls()}
+
+                    <Pressable style={localStyles.timelineTrack} onLayout={onTimelineLayout} onPress={onTimelinePress}>
+                      <View style={[localStyles.timelineProgress, { width: `${progressPct}%` }]} />
+                    </Pressable>
+
+                    <View style={{ gap: 14 }}>
+                      <FormInput
+                        label="Title"
+                        icon="create-outline"
+                        value={title}
+                        onChangeText={setTitle}
+                        editable={!saving}
+                        placeholder="Challenge title"
+                      />
+
+                      <FormInput
+                        label="Description"
+                        icon="document-text-outline"
+                        value={description}
+                        onChangeText={setDescription}
+                        editable={!saving}
+                        multiline
+                        numberOfLines={4}
+                        placeholder="Challenge description"
+                        style={localStyles.descriptionInput}
+                      />
+                    </View>
+
+                    <View style={localStyles.actionGroup}>
+                      <Button
+                        title={saving ? "Saving Challenge Info..." : "Save Challenge Info"}
+                        icon="checkmark-circle-outline"
+                        iconPosition="left"
+                        onPress={saveInfo}
+                        loading={saving}
+                      />
+
+                      {challenge.status !== "PUBLISHED" ? (
+                        <Button
+                          title="Publish Challenge"
+                          variant="primary"
+                          icon="megaphone-outline"
+                          iconPosition="left"
+                          onPress={() => setPublishStatus("PUBLISHED")}
+                          disabled={saving}
+                        />
+                      ) : (
+                        <Button
+                          title="Move Back To Draft"
+                          variant="outline"
+                          icon="refresh-outline"
+                          iconPosition="left"
+                          onPress={() => setPublishStatus("DRAFT")}
+                          disabled={saving}
+                        />
+                      )}
+                    </View>
+                  </View>
+                ) : activeTab === "periods" ? (
+                  <View style={[styles.card, { gap: 16 }]}> 
+                    <View style={localStyles.sectionHeader}>
+                      <Text style={styles.title}>Answer Period Editor</Text>
+                      <Badge label={pendingStartMs === null ? "Ready" : "Marking"} tone={pendingStartMs === null ? "neutral" : "yellow"} />
+                    </View>
+                    <Text style={[styles.subtitle, { marginTop: -6 }]}>Use the player to mark answer windows, then drag the handles on the timeline to fine-tune each range.</Text>
+
+                    <View style={localStyles.videoWrap}>
+                      <VideoView
+                        player={videoPlayer}
+                        style={localStyles.video}
+                        contentFit="contain"
+                        nativeControls={false}
+                      />
+                    </View>
+
+                    {renderPlaybackControls()}
+
+                    <Pressable style={localStyles.timelineTrack} onLayout={onTimelineLayout} onPress={onTimelinePress}>
+                      <View style={[localStyles.timelineProgress, { width: `${progressPct}%` }]} />
+
+                      {hasDuration
+                        ? periods.map((p, i) => {
+                            const leftPct = (p.startMs / videoDurationMs) * 100;
+                            const widthPct = Math.max(((p.endMs - p.startMs) / videoDurationMs) * 100, 0.75);
+                            const selected = i === selectedPeriodIndex;
+                            return (
+                              <Pressable
+                                key={`${p.startMs}-${p.endMs}-${i}`}
+                                style={[
+                                  localStyles.periodBar,
+                                  selected && localStyles.periodBarSelected,
+                                  { left: `${leftPct}%`, width: `${widthPct}%` }
+                                ]}
+                                onPress={() => setSelectedPeriodIndex(i)}
+                              />
+                            );
+                          })
+                        : null}
+
+                      {selectedPeriod && hasDuration && timelineWidth > 0 ? (
+                        <>
+                          <View
+                            style={[localStyles.dragHandle, { left: Math.max(0, Math.min(selectedStartPx - 7, timelineWidth - 14)) }]}
+                            {...leftHandleResponder.panHandlers}
+                          />
+                          <View
+                            style={[localStyles.dragHandle, { left: Math.max(0, Math.min(selectedEndPx - 7, timelineWidth - 14)) }]}
+                            {...rightHandleResponder.panHandlers}
+                          />
+                        </>
+                      ) : null}
+                    </Pressable>
+
+                    <Button
+                      title={pendingStartMs === null ? "Start Answer Period" : "Stop Answer Period"}
+                      variant={pendingStartMs === null ? "primary" : "secondary"}
+                      icon={pendingStartMs === null ? "flag-outline" : "stop-circle-outline"}
+                      iconPosition="left"
+                      onPress={handleAnswerPeriodButton}
+                    />
+
+                    <View style={localStyles.pendingCard}>
+                      <Text style={localStyles.pendingText}>
+                        {pendingStartMs === null
+                          ? "Ready to mark a new answer period. Start at the correct frame, then stop where the response should end."
+                          : `Start marked at ${formatMs(pendingStartMs)}. Move the video and press Stop Answer Period to finish this range.`}
+                      </Text>
+                    </View>
+
+                    {periods.length > 0 ? (
+                      <View style={{ gap: 12 }}>
+                        <View style={localStyles.sectionHeader}>
+                          <Text style={styles.title}>Defined Periods</Text>
+                          <Badge label={`${periods.length} Total`} tone="yellow" />
+                        </View>
+                        {periods.map((p, i) => {
+                          const isSelected = i === selectedPeriodIndex;
+                          return (
+                            <Pressable
+                              key={`${p.startMs}-${p.endMs}-${i}`}
+                              style={[localStyles.periodRow, isSelected && localStyles.periodRowSelected]}
+                              onPress={() => setSelectedPeriodIndex(i)}
+                            >
+                              <View style={{ flex: 1, gap: 6 }}>
+                                <View style={localStyles.periodMetaRow}>
+                                  <Text style={localStyles.periodTitle}>Period {i + 1}</Text>
+                                  <Badge label={`${formatMs(p.endMs - p.startMs)}`} tone={isSelected ? "cyan" : "neutral"} />
+                                </View>
+                                <Text style={localStyles.periodRangeText}>{formatMs(p.startMs)} → {formatMs(p.endMs)}</Text>
+                              </View>
+                              <IconCircleButton
+                                icon="close-outline"
+                                size={34}
+                                onPress={() => removePeriod(i)}
+                                style={localStyles.removePeriodButton}
+                              />
+                            </Pressable>
+                          );
+                        })}
+                      </View>
+                    ) : (
+                      <View style={[styles.card, localStyles.emptyNestedCard]}> 
+                        <Badge label="No Periods Yet" tone="neutral" />
+                        <Text style={[styles.subtitle, { marginTop: 2 }]}>Create at least one answer window before saving.</Text>
+                      </View>
+                    )}
+
+                    <Button
+                      title={savingPeriods ? "Saving Answer Periods..." : "Save Answer Periods"}
+                      icon="save-outline"
+                      iconPosition="left"
+                      onPress={saveAnswerPeriods}
+                      loading={savingPeriods}
+                    />
+                  </View>
+                ) : (
+                  <View style={{ gap: 12 }}>
+                    <View style={localStyles.sectionHeader}>
+                      <Text style={styles.sectionTitle}>Answer Videos</Text>
+                      <Badge
+                        label={`${sortedSubmissions.length} Submission${sortedSubmissions.length === 1 ? "" : "s"}`}
+                        tone="pink"
+                      />
+                    </View>
+
+                    {sortedSubmissions.length === 0 ? (
+                      <View style={[styles.card, styles.emptyContainer, { alignItems: "flex-start", gap: 12 }]}> 
+                        <Badge label="No Answers Yet" tone="neutral" />
+                        <Text style={styles.title}>No answers submitted yet.</Text>
+                        <Text style={[styles.subtitle, { marginTop: 0 }]}>Student recordings will appear here as soon as they submit their responses.</Text>
+                      </View>
+                    ) : (
+                      sortedSubmissions.map((submission) => (
+                        <Pressable
+                          key={submission.id}
+                          style={({ pressed }) => [
+                            styles.row,
+                            {
+                              marginTop: 0,
+                              gap: 12,
+                              opacity: pressed ? 0.92 : 1,
+                              transform: [{ scale: pressed ? 0.99 : 1 }]
+                            }
+                          ]}
+                          onPress={() =>
+                            navigation.navigate("SubmissionReview", {
+                              challengeId: challenge.id,
+                              submissionId: submission.id
+                            })
+                          }
+                        >
+                          <View style={localStyles.answerHeader}>
+                            <View style={{ flex: 1, gap: 6 }}>
+                              <Text style={styles.title}>{submission.student?.name ?? "Student"}</Text>
+                              <Text style={[styles.subtitle, { marginTop: 0 }]}>{submission.student?.email ?? "No email available"}</Text>
+                            </View>
+                            <View style={localStyles.answerBadgeColumn}>
+                              <Badge label={formatStatusLabel(submission.status)} tone={getSubmissionTone(submission.status)} />
+                              <Badge
+                                label={submission.score !== null ? `${submission.score}/100` : "Not graded"}
+                                tone={submission.score !== null ? "cyan" : "neutral"}
+                              />
+                            </View>
+                          </View>
+                          <Text style={styles.status}>Submitted: {new Date(submission.createdAt).toLocaleString()}</Text>
+                          <Text style={styles.link}>Open Answer Review</Text>
+                        </Pressable>
+                      ))
+                    )}
+                  </View>
+                )}
+              </View>
+            )}
+          </View>
         </ScrollView>
       </KeyboardAvoidingView>
     </View>
@@ -674,152 +770,59 @@ export default function ChallengeDetailScreen() {
 }
 
 const localStyles = StyleSheet.create({
-  safe: {
-    flex: 1,
-    backgroundColor: "#eef3f8"
-  },
-  content: {
-    padding: 16,
-    gap: 14,
-    paddingBottom: 36
-  },
-  heroCard: {
-    backgroundColor: "#0f2742",
-    borderRadius: 20,
-    padding: 18,
-    gap: 6,
-    shadowColor: "#0f172a",
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.16,
-    shadowRadius: 16,
-    elevation: 6
-  },
-  heroTopRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 10,
-    marginBottom: 4
-  },
-  backButton: {
-    backgroundColor: "rgba(147, 197, 253, 0.2)",
-    borderColor: "rgba(147, 197, 253, 0.5)",
-    borderWidth: 1,
-    borderRadius: 999,
-    paddingHorizontal: 12,
-    paddingVertical: 7
-  },
-  backButtonText: {
-    color: "#dbeafe",
-    fontSize: 13,
-    fontWeight: "700"
-  },
-  heroEyebrow: {
-    color: "#93c5fd",
-    fontSize: 12,
-    fontWeight: "700",
-    letterSpacing: 0.4,
-    textTransform: "uppercase"
-  },
-  heroTitle: {
-    flex: 1,
-    color: "#f8fafc",
-    fontSize: 28,
-    fontWeight: "800"
-  },
-  heroSubtitle: {
-    color: "#cbd5e1",
-    fontSize: 14,
-    fontWeight: "500",
-    lineHeight: 20
-  },
-  summaryCard: {
-    backgroundColor: "#ffffff",
-    borderRadius: 16,
-    padding: 14,
-    borderWidth: 1,
-    borderColor: "#dbe4ef"
-  },
-  summaryHead: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    gap: 10
-  },
-  summaryTitle: {
-    flex: 1,
-    color: "#0f172a",
-    fontSize: 19,
-    fontWeight: "800"
-  },
-  summaryMeta: {
-    marginTop: 4,
-    color: "#64748b",
-    fontSize: 13,
-    fontWeight: "500"
-  },
-  statusChip: {
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: 999
-  },
-  statusChipText: {
-    fontSize: 12,
-    fontWeight: "800"
-  },
   tabsWrap: {
-    backgroundColor: "#dbe4ef",
-    borderRadius: 14,
-    padding: 4,
+    backgroundColor: colors.darkBg,
+    borderRadius: 18,
+    padding: 5,
+    borderWidth: 1,
+    borderColor: colors.borderColor,
     flexDirection: "row",
-    gap: 6
+    gap: 8
   },
   tabButton: {
     flex: 1,
-    minHeight: 44,
-    borderRadius: 10,
+    minHeight: 46,
+    borderRadius: 14,
     alignItems: "center",
-    justifyContent: "center"
+    justifyContent: "center",
+    paddingHorizontal: 10
   },
   tabButtonActive: {
-    backgroundColor: "#ffffff"
+    backgroundColor: colors.cardBg,
+    borderWidth: 1,
+    borderColor: colors.borderColor
   },
   tabButtonText: {
-    color: "#334155",
-    fontSize: 14,
-    fontWeight: "700"
+    color: colors.textSecondary,
+    fontSize: 13,
+    fontWeight: "700",
+    textAlign: "center"
   },
   tabButtonTextActive: {
-    color: "#0f172a"
+    color: colors.textPrimary
   },
-  panelCard: {
-    backgroundColor: "#ffffff",
-    borderRadius: 16,
-    padding: 14,
-    gap: 12,
-    borderWidth: 1,
-    borderColor: "#dbe4ef"
+  summaryBadgeRow: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 8
   },
-  blockTitle: {
-    color: "#0f172a",
-    fontSize: 18,
-    fontWeight: "800"
+  sectionHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: 12
   },
-  helpText: {
-    color: "#64748b",
-    fontSize: 13,
-    lineHeight: 19
-  },
-  videoFrame: {
-    backgroundColor: "#0b1220",
-    borderRadius: 14,
+  videoWrap: {
+    borderRadius: 18,
     overflow: "hidden",
-    width: "68%",
+    width: "72%",
     minWidth: 220,
-    maxWidth: 320,
+    maxWidth: 340,
     aspectRatio: 9 / 16,
     alignSelf: "center",
     borderWidth: 1,
-    borderColor: "#1e293b"
+    borderColor: colors.borderColor,
+    backgroundColor: colors.darkBg
   },
   video: {
     width: "100%",
@@ -832,17 +835,20 @@ const localStyles = StyleSheet.create({
   },
   controlButton: {
     flex: 1,
-    minHeight: 42,
-    borderRadius: 10,
-    backgroundColor: "#0f2742",
+    minHeight: 44,
+    borderRadius: 14,
+    backgroundColor: colors.inputBg,
+    borderWidth: 1,
+    borderColor: colors.borderColor,
     alignItems: "center",
     justifyContent: "center"
   },
   playButton: {
-    backgroundColor: "#0369a1"
+    backgroundColor: colors.primary,
+    borderColor: colors.primary
   },
   controlButtonText: {
-    color: "#ffffff",
+    color: colors.textPrimary,
     fontSize: 14,
     fontWeight: "700"
   },
@@ -852,189 +858,122 @@ const localStyles = StyleSheet.create({
     alignItems: "center"
   },
   timeText: {
-    color: "#475569",
+    color: colors.textSecondary,
     fontSize: 12,
     fontWeight: "700"
   },
   timelineTrack: {
     position: "relative",
-    height: 26,
+    height: 28,
     borderRadius: 999,
-    backgroundColor: "#e2e8f0",
+    backgroundColor: colors.darkBg,
     overflow: "hidden",
-    justifyContent: "center"
+    justifyContent: "center",
+    borderWidth: 1,
+    borderColor: colors.borderColor
   },
   timelineProgress: {
     position: "absolute",
     left: 0,
     top: 0,
     bottom: 0,
-    backgroundColor: "#7dd3fc"
+    backgroundColor: colors.secondary
+  },
+  descriptionInput: {
+    minHeight: 120,
+    paddingTop: 16,
+    textAlignVertical: "top"
+  },
+  actionGroup: {
+    gap: 12
   },
   periodBar: {
     position: "absolute",
     top: 6,
     bottom: 6,
     borderRadius: 999,
-    backgroundColor: "rgba(3, 105, 161, 0.35)",
+    backgroundColor: "rgba(255, 79, 134, 0.25)",
     borderWidth: 1,
-    borderColor: "rgba(3, 105, 161, 0.7)"
+    borderColor: "rgba(255, 79, 134, 0.55)"
   },
   periodBarSelected: {
-    backgroundColor: "rgba(2, 132, 199, 0.5)",
-    borderColor: "#0369a1"
+    backgroundColor: "rgba(25, 215, 208, 0.28)",
+    borderColor: colors.secondary
   },
   dragHandle: {
     position: "absolute",
     top: 2,
-    width: 12,
-    height: 22,
-    borderRadius: 6,
-    backgroundColor: "#ffffff",
+    width: 14,
+    height: 24,
+    borderRadius: 7,
+    backgroundColor: colors.textPrimary,
     borderWidth: 2,
-    borderColor: "#0369a1"
+    borderColor: colors.secondary
   },
-  periodActionsRow: {
-    flexDirection: "row",
-    gap: 10
-  },
-  pendingBadge: {
-    backgroundColor: "#f0f9ff",
-    borderRadius: 10,
-    paddingHorizontal: 10,
-    paddingVertical: 8,
+  pendingCard: {
+    borderRadius: 16,
     borderWidth: 1,
-    borderColor: "#bae6fd"
+    borderColor: colors.borderColor,
+    backgroundColor: colors.darkBg,
+    paddingHorizontal: 14,
+    paddingVertical: 12
   },
-  pendingBadgeText: {
-    color: "#0369a1",
-    fontSize: 12,
-    fontWeight: "700"
+  pendingText: {
+    color: colors.textSecondary,
+    fontSize: 13,
+    fontWeight: "600",
+    lineHeight: 20
   },
   periodRow: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "#f8fafc",
-    borderRadius: 10,
-    padding: 10,
+    gap: 12,
+    backgroundColor: colors.cardBg,
+    borderRadius: 18,
+    padding: 14,
     borderWidth: 1,
-    borderColor: "#dbe4ef"
+    borderColor: colors.borderColor
   },
   periodRowSelected: {
-    borderColor: "#0369a1",
-    backgroundColor: "#eff6ff"
+    borderColor: colors.secondary,
+    shadowColor: colors.secondary,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.14,
+    shadowRadius: 10,
+    elevation: 2
   },
-  periodRowText: {
-    flex: 1,
-    color: "#0f172a",
-    fontWeight: "700",
-    fontSize: 14
-  },
-  emptyPeriodsCard: {
-    backgroundColor: "#f8fafc",
-    borderRadius: 10,
-    padding: 14,
+  periodMetaRow: {
+    flexDirection: "row",
     alignItems: "center",
-    borderWidth: 1,
-    borderColor: "#dbe4ef"
+    justifyContent: "space-between",
+    gap: 10
   },
-  emptyPeriodsText: {
-    color: "#94a3b8",
-    fontSize: 14
-  },
-  label: {
-    color: "#0f172a",
-    fontSize: 14,
-    fontWeight: "700",
-    marginBottom: 8
-  },
-  input: {
-    backgroundColor: "#f8fafc",
-    borderColor: "#dbe4ef",
-    borderWidth: 1,
-    borderRadius: 12,
-    minHeight: 52,
-    color: "#0f172a",
-    fontSize: 16,
-    fontWeight: "500",
-    paddingHorizontal: 14,
-    paddingVertical: 12
-  },
-  inputMultiline: {
-    minHeight: 98,
-    textAlignVertical: "top"
-  },
-  primaryButton: {
-    backgroundColor: "#0369a1",
-    borderRadius: 12,
-    minHeight: 52,
-    alignItems: "center",
-    justifyContent: "center",
-    paddingHorizontal: 16
-  },
-  primaryButtonText: {
-    color: "#ffffff",
+  periodTitle: {
+    color: colors.textPrimary,
     fontSize: 15,
     fontWeight: "800"
   },
-  secondaryButton: {
-    backgroundColor: "#e2e8f0",
-    borderRadius: 12,
-    minHeight: 50,
-    alignItems: "center",
-    justifyContent: "center",
-    paddingHorizontal: 14
-  },
-  secondaryButtonText: {
-    color: "#0f172a",
-    fontSize: 15,
-    fontWeight: "700"
-  },
-  buttonDisabled: {
-    opacity: 0.6
-  },
-  sectionTitle: {
-    color: "#0f172a",
-    fontSize: 20,
-    fontWeight: "800",
-    marginVertical: 6
-  },
-  answerRow: {
-    backgroundColor: "#ffffff",
-    borderRadius: 14,
-    padding: 14,
-    borderColor: "#dbe4ef",
-    borderWidth: 1,
-    marginTop: 10
-  },
-  answerName: {
-    color: "#0f172a",
-    fontSize: 16,
-    fontWeight: "800"
-  },
-  answerMeta: {
-    color: "#64748b",
+  periodRangeText: {
+    color: colors.textSecondary,
     fontSize: 13,
-    marginTop: 3,
-    fontWeight: "500"
-  },
-  answerLink: {
-    color: "#0c4a6e",
-    fontSize: 14,
-    fontWeight: "700",
-    marginTop: 10
-  },
-  centerState: {
-    backgroundColor: "#ffffff",
-    borderColor: "#dbe4ef",
-    borderWidth: 1,
-    borderRadius: 16,
-    paddingVertical: 26,
-    alignItems: "center"
-  },
-  centerStateText: {
-    color: "#64748b",
-    fontSize: 14,
     fontWeight: "600"
+  },
+  removePeriodButton: {
+    backgroundColor: colors.darkBg
+  },
+  emptyNestedCard: {
+    alignItems: "flex-start",
+    padding: 14,
+    gap: 10
+  },
+  answerHeader: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    justifyContent: "space-between",
+    gap: 12
+  },
+  answerBadgeColumn: {
+    alignItems: "flex-end",
+    gap: 8
   }
 });

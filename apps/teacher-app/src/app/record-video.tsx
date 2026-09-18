@@ -23,6 +23,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { api } from "../actions/api";
 import { styles } from "../actions/styles";
+import colors from "../configs/colors";
 
 type RecordVideoScreenNavigationProp = NativeStackNavigationProp<any, "RecordVideo">;
 type ChallengeStatus = "DRAFT" | "PUBLISHED";
@@ -36,7 +37,7 @@ const MIN_PERIOD_MS = 500;
 
 const localStyles = StyleSheet.create({
   previewCard: {
-    backgroundColor: "#0b1220",
+    backgroundColor: colors.cardBg,
     borderRadius: 16,
     overflow: "hidden",
     width: "68%",
@@ -45,7 +46,7 @@ const localStyles = StyleSheet.create({
     aspectRatio: 9 / 16,
     alignSelf: "center",
     borderWidth: 1,
-    borderColor: "#1e293b"
+    borderColor: colors.borderColor
   },
   video: {
     width: "100%",
@@ -55,10 +56,10 @@ const localStyles = StyleSheet.create({
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
-    backgroundColor: "#1a1a1a"
+    backgroundColor: colors.darkBg
   },
   emptyPreviewText: {
-    color: "#999",
+    color: colors.textTertiary,
     fontSize: 16,
     textAlign: "center"
   },
@@ -74,7 +75,7 @@ const localStyles = StyleSheet.create({
     gap: 12
   },
   loadingText: {
-    color: "#fff",
+    color: colors.textPrimary,
     fontSize: 14,
     marginTop: 8
   },
@@ -88,15 +89,15 @@ const localStyles = StyleSheet.create({
     flex: 1,
     minHeight: 42,
     borderRadius: 10,
-    backgroundColor: "#0f2742",
+    backgroundColor: colors.cardBg,
     alignItems: "center",
     justifyContent: "center"
   },
   playButton: {
-    backgroundColor: "#0369a1"
+    backgroundColor: colors.primary
   },
   controlButtonText: {
-    color: "#ffffff",
+    color: colors.textPrimary,
     fontSize: 14,
     fontWeight: "700"
   },
@@ -107,7 +108,7 @@ const localStyles = StyleSheet.create({
     marginTop: 8
   },
   timeText: {
-    color: "#475569",
+    color: colors.textSecondary,
     fontSize: 12,
     fontWeight: "700"
   },
@@ -115,7 +116,7 @@ const localStyles = StyleSheet.create({
     position: "relative",
     height: 26,
     borderRadius: 999,
-    backgroundColor: "#e2e8f0",
+    backgroundColor: colors.borderColor,
     overflow: "hidden",
     justifyContent: "center",
     marginTop: 8
@@ -125,20 +126,20 @@ const localStyles = StyleSheet.create({
     left: 0,
     top: 0,
     bottom: 0,
-    backgroundColor: "#7dd3fc"
+    backgroundColor: colors.secondary
   },
   periodBar: {
     position: "absolute",
     top: 6,
     bottom: 6,
     borderRadius: 999,
-    backgroundColor: "rgba(3, 105, 161, 0.35)",
+    backgroundColor: "rgba(255, 79, 134, 0.35)",
     borderWidth: 1,
-    borderColor: "rgba(3, 105, 161, 0.7)"
+    borderColor: "rgba(255, 79, 134, 0.7)"
   },
   periodBarSelected: {
-    backgroundColor: "rgba(2, 132, 199, 0.5)",
-    borderColor: "#0369a1"
+    backgroundColor: "rgba(255, 79, 134, 0.5)",
+    borderColor: colors.primary
   },
   dragHandle: {
     position: "absolute",
@@ -146,37 +147,37 @@ const localStyles = StyleSheet.create({
     width: 12,
     height: 22,
     borderRadius: 6,
-    backgroundColor: "#ffffff",
+    backgroundColor: colors.cardBg,
     borderWidth: 2,
-    borderColor: "#0369a1"
+    borderColor: colors.primary
   },
   uploadProgressWrap: {
-    backgroundColor: "#ffffff",
+    backgroundColor: colors.cardBg,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: "#dbe4ef",
+    borderColor: colors.borderColor,
     padding: 12,
     gap: 8
   },
   uploadProgressLabel: {
-    color: "#111827",
+    color: colors.textPrimary,
     fontSize: 13,
     fontWeight: "600"
   },
   uploadProgressTrack: {
     height: 8,
     borderRadius: 999,
-    backgroundColor: "#e5e7eb",
+    backgroundColor: colors.borderColor,
     overflow: "hidden"
   },
   uploadProgressFill: {
     height: "100%",
     borderRadius: 999,
-    backgroundColor: "#2563eb"
+    backgroundColor: colors.primary
   },
   answerPeriodCard: {
-    backgroundColor: "#f8fafc",
-    borderColor: "#dbe4ef",
+    backgroundColor: colors.cardBg,
+    borderColor: colors.borderColor,
     borderRadius: 12,
     borderWidth: 1,
     padding: 12,
@@ -188,12 +189,12 @@ const localStyles = StyleSheet.create({
   answerPeriodTime: {
     flex: 1,
     fontSize: 14,
-    color: "#0f172a",
+    color: colors.textPrimary,
     fontWeight: "600"
   },
   answerPeriodCardSelected: {
-    borderColor: "#0369a1",
-    backgroundColor: "#eff6ff"
+    borderColor: colors.primary,
+    backgroundColor: colors.darkBg
   },
   answerPeriodAddButtonContent: {
     flexDirection: "row",
@@ -202,25 +203,25 @@ const localStyles = StyleSheet.create({
     gap: 6
   },
   answerPeriodAddButtonText: {
-    color: "#fff",
+    color: colors.textPrimary,
     fontSize: 14,
     fontWeight: "700"
   },
   answerPeriodEmpty: {
-    color: "#64748b",
+    color: colors.textSecondary,
     fontSize: 13,
     fontWeight: "500"
   },
   pendingBadge: {
-    backgroundColor: "#f0f9ff",
+    backgroundColor: colors.cardBg,
     borderRadius: 10,
     paddingHorizontal: 10,
     paddingVertical: 8,
     borderWidth: 1,
-    borderColor: "#bae6fd"
+    borderColor: colors.borderColor
   },
   pendingBadgeText: {
-    color: "#0369a1",
+    color: colors.primary,
     fontSize: 12,
     fontWeight: "700"
   }
@@ -594,7 +595,7 @@ export default function RecordVideoScreen() {
               style={[
                 styles.heroCard,
                 {
-                  backgroundColor: "#0f2742",
+                  backgroundColor: colors.cardBg,
                   marginBottom: 16,
                   marginHorizontal: -20,
                   marginTop: -20,
@@ -607,7 +608,7 @@ export default function RecordVideoScreen() {
               <View style={styles.heroTopRow}>
                 <Pressable style={styles.backButton} onPress={() => navigation.goBack()} disabled={loading}>
                   <Text style={styles.backButtonText}>
-                    <Ionicons name="chevron-back" size={14} color="#dbeafe" /> Back
+                    <Ionicons name="chevron-back" size={14} color={colors.secondary} /> Back
                   </Text>
                 </Pressable>
                 <Text style={styles.heroTitle}>Create Challenge</Text>
@@ -625,7 +626,7 @@ export default function RecordVideoScreen() {
                     value={title}
                     onChangeText={setTitle}
                     placeholder="e.g., Scales Practice"
-                    placeholderTextColor="#9ca3af"
+                    placeholderTextColor={colors.textTertiary}
                     editable={!loading}
                     style={styles.input}
                   />
@@ -637,7 +638,7 @@ export default function RecordVideoScreen() {
                     value={description}
                     onChangeText={setDescription}
                     placeholder="Add instructions or coaching notes for students"
-                    placeholderTextColor="#9ca3af"
+                    placeholderTextColor={colors.textTertiary}
                     multiline
                     editable={!loading}
                     style={[styles.input, styles.inputMultiline]}
@@ -664,7 +665,7 @@ export default function RecordVideoScreen() {
                   />
                   {videoLoading && (
                     <View style={localStyles.loadingOverlay}>
-                      <ActivityIndicator size="large" color="#fff" />
+                      <ActivityIndicator size="large" color={colors.textPrimary} />
                       <Text style={localStyles.loadingText}>Loading video...</Text>
                     </View>
                   )}
@@ -748,7 +749,7 @@ export default function RecordVideoScreen() {
                     disabled={!videoUri || loading}
                   >
                     <View style={localStyles.answerPeriodAddButtonContent}>
-                      <Ionicons name="add-circle-outline" size={18} color="#fff" />
+                      <Ionicons name="add-circle-outline" size={18} color={colors.textPrimary} />
                       <Text style={localStyles.answerPeriodAddButtonText}>
                         {pendingStartMs === null ? "Start Answer Period" : "Stop Answer Period"}
                       </Text>
@@ -831,4 +832,3 @@ export default function RecordVideoScreen() {
     </View>
   );
 }
-

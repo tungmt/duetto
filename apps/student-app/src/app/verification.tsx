@@ -1,11 +1,15 @@
 import { useState } from "react";
-import { Alert, KeyboardAvoidingView, Platform, Pressable, ScrollView, TextInput, View } from "react-native";
+import { Alert, KeyboardAvoidingView, Platform, ScrollView, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import Text from "../components/Text";
 import { api } from "../actions/api";
 import nav from "../actions/navigation";
 import { saveSession } from "../actions/session";
 import { styles } from "../actions/styles";
+import AppLogo from "../components/AppLogo";
+import Badge from "../components/Badge";
+import Button from "../components/Button";
+import FormInput from "../components/FormInput";
 
 export default function VerificationScreen({ navigation, route }: any) {
   const insets = useSafeAreaInsets();
@@ -35,61 +39,49 @@ export default function VerificationScreen({ navigation, route }: any) {
     <View style={styles.safe}>
       <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : "height"} style={{ flex: 1 }}>
         <ScrollView contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
-          <View
-            style={[
-              styles.heroCard,
-              {
-                marginBottom: 16,
-                paddingTop: insets.top + 16,
-                paddingHorizontal: 16,
-                paddingBottom: 16
-              }
-            ]}
-          >
-            <View style={styles.heroTopRow}>
-              <Text style={styles.heroTitle}>Verify Email</Text>
+          <View style={{ paddingHorizontal: 20, paddingTop: insets.top + 12, paddingBottom: 24 }}>
+            <View style={{ flexDirection: "row", justifyContent: "flex-end", marginBottom: 20 }}>
+              <Badge label="Secure Check" tone="cyan" />
             </View>
-            <Text style={styles.heroEyebrow}>Email Verification</Text>
-            <Text style={styles.heroSubtitle}>Enter the code sent to your email.</Text>
-          </View>
 
-          <View style={{ gap: 12 }}>
-            <View>
-              <Text style={[styles.title, { marginBottom: 8 }]}>Email</Text>
-              <TextInput
+            <AppLogo />
+
+            <Text style={[styles.heading, { marginTop: 20, marginBottom: 6 }]}>Verify Your Email</Text>
+            <Text style={[styles.subheading, { marginBottom: 28 }]}>We sent a 6-digit code to the email below.</Text>
+
+            <View style={{ gap: 18 }}>
+              <FormInput
+                label="Email"
+                icon="mail-outline"
                 value={email}
                 onChangeText={setEmail}
                 placeholder="student@example.com"
-                placeholderTextColor="#9ca3af"
                 autoCapitalize="none"
                 keyboardType="email-address"
                 editable={!loading}
-                style={styles.input}
               />
-            </View>
-            <View>
-              <Text style={[styles.title, { marginBottom: 8 }]}>Verification Code</Text>
-              <TextInput
+
+              <FormInput
+                label="Verification Code"
+                icon="keypad-outline"
                 value={code}
                 onChangeText={setCode}
                 placeholder="Enter 6-digit code"
-                placeholderTextColor="#9ca3af"
+                keyboardType="number-pad"
+                maxLength={6}
                 editable={!loading}
-                style={styles.input}
+              />
+
+              <Button
+                title={loading ? "Verifying..." : "Verify Email"}
+                icon="shield-checkmark-outline"
+                onPress={verify}
+                loading={loading}
               />
             </View>
-
-            <Pressable
-              style={[styles.button, loading && styles.buttonDisabled]}
-              onPress={verify}
-              disabled={loading}
-            >
-              <Text style={styles.buttonText}>{loading ? "Verifying..." : "Verify Email"}</Text>
-            </Pressable>
           </View>
         </ScrollView>
       </KeyboardAvoidingView>
     </View>
   );
 }
-

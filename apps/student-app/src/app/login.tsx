@@ -1,19 +1,23 @@
 import { useState } from "react";
-import { Alert, KeyboardAvoidingView, Platform, Pressable, ScrollView, TextInput, View } from "react-native";
-import { Ionicons } from "@expo/vector-icons";
+import { Alert, KeyboardAvoidingView, Platform, Pressable, ScrollView, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { api } from "../actions/api";
 import nav from "../actions/navigation";
 import { saveSession } from "../actions/session";
 import { styles } from "../actions/styles";
 import Text from "../components/Text";
+import AppLogo from "../components/AppLogo";
+import Badge from "../components/Badge";
+import Button from "../components/Button";
+import FormInput from "../components/FormInput";
+import IconCircleButton from "../components/IconCircleButton";
+import SocialButton from "../components/SocialButton";
 import colors from "../configs/colors";
 
 export default function LoginScreen({ navigation }: any) {
   const insets = useSafeAreaInsets();
   const [email, setEmail] = useState("student@example.com");
   const [password, setPassword] = useState("");
-  const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
 
   async function login() {
@@ -45,82 +49,73 @@ export default function LoginScreen({ navigation }: any) {
     <View style={styles.safe}>
       <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : "height"} style={{ flex: 1 }}>
         <ScrollView contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
-
-          <View style={{ gap: 24, marginHorizontal: 16, paddingTop: insets.top + 24, paddingBottom: 24 }}>
-            <View style={styles.heroTopRow}>
-              <Text style={styles.heroTitle}>Welcome Back</Text>
+          <View style={{ paddingHorizontal: 20, paddingTop: insets.top + 12 }}>
+            <View style={{ flexDirection: "row", alignItems: "center", justifyContent: navigation.canGoBack() ? "space-between" : "flex-end", marginBottom: 20 }}>
+              {navigation.canGoBack() ? (
+                <IconCircleButton icon="arrow-back" onPress={() => navigation.goBack()} />
+              ) : null}
+              <Badge label="Safe & Verified" tone="cyan" />
             </View>
 
-            <View>
-              <Text style={[styles.title, { marginBottom: 8 }]}>Username or email</Text>
-              <TextInput
+            <AppLogo />
+
+            <Text style={[styles.heading, { marginTop: 20, marginBottom: 6 }]}>Welcome back!</Text>
+            <Text style={[styles.subheading, { marginBottom: 28 }]}>
+              Log in to keep dueting with your crew and sharing feedback.
+            </Text>
+
+            <View style={{ gap: 18 }}>
+              <FormInput
+                label="Username or Email"
+                icon="person-outline"
                 value={email}
                 onChangeText={setEmail}
-                placeholder="email@example.com"
-                placeholderTextColor="#9ca3af"
+                placeholder="leo_dancer"
                 autoCapitalize="none"
                 keyboardType="email-address"
                 editable={!loading}
-                style={styles.input}
               />
-            </View>
 
-            <View>
-              <Text style={[styles.title, { marginBottom: 8 }]}>Password</Text>
-              <View style={{ flexDirection: "row", alignItems: "center", position: "relative" }}>
-                <TextInput
+              <View>
+                <FormInput
+                  label="Password"
+                  icon="lock-closed-outline"
+                  isPassword
                   value={password}
                   onChangeText={setPassword}
                   placeholder="Enter your password"
-                  placeholderTextColor="#9ca3af"
-                  secureTextEntry={!showPassword}
                   editable={!loading}
-                  style={[styles.input, { flex: 1, paddingRight: 48 }]}
                 />
-                <Pressable
-                  onPress={() => setShowPassword(!showPassword)}
-                  disabled={loading}
-                  style={({ pressed }) => ({
-                    position: "absolute",
-                    right: 12,
-                    padding: 8,
-                    opacity: pressed ? 0.6 : 1
-                  })}
-                >
-                  <Ionicons
-                    name={showPassword ? "eye" : "eye-off"}
-                    size={20}
-                    color="#64748b"
-                  />
+                <Pressable onPress={() => navigation.navigate("ResetPassword")} style={{ alignSelf: "flex-end", marginTop: 10 }}>
+                  <Text style={{ color: colors.yellow, fontWeight: "700", fontSize: 13 }}>Forgot Password?</Text>
                 </Pressable>
               </View>
-            </View>
 
-            <Pressable
-              style={[styles.button, loading && styles.buttonDisabled]}
-              onPress={login}
-              disabled={loading}
-            >
-              <Text style={styles.buttonText}>{loading ? "Signing in..." : "Sign In"}</Text>
-            </Pressable>
+              <Button title="Log in" icon="arrow-forward" onPress={login} loading={loading} style={{ marginTop: 4 }} />
 
-            <View style={{ width: "100%", alignItems: "flex-end" }}>
-              <Pressable onPress={() => navigation.navigate("ResetPassword")}>
-                <Text style={styles.link}>Forgot password?</Text>
-              </Pressable>
+              <View style={{ flexDirection: "row", alignItems: "center", gap: 12, marginVertical: 4 }}>
+                <View style={{ flex: 1, height: 1, backgroundColor: colors.borderColor }} />
+                <Text style={{ color: colors.textTertiary, fontSize: 12, fontWeight: "700", letterSpacing: 0.5 }}>
+                  OR CONTINUE WITH
+                </Text>
+                <View style={{ flex: 1, height: 1, backgroundColor: colors.borderColor }} />
+              </View>
+
+              <View style={{ flexDirection: "row", gap: 12 }}>
+                <SocialButton label="Google" provider="google" />
+                <SocialButton label="Apple" provider="apple" />
+              </View>
             </View>
           </View>
-
-
         </ScrollView>
       </KeyboardAvoidingView>
 
-      <View style={{ marginTop: 24, alignItems: "center", marginBottom: insets.bottom + 24, }}>
-        <Text style={{ fontSize: 14, color: '#BDB5C7' }}>Don't have an account? 
+      <View style={{ alignItems: "center", marginBottom: insets.bottom + 24, marginTop: 12 }}>
+        <Text style={{ fontSize: 14, color: colors.textSecondary }}>
+          Don't have an account?
           <Text onPress={() => navigation.navigate("Register")} style={{ color: colors.secondary, fontWeight: "bold" }}>{` Sign up`}</Text>
         </Text>
       </View>
     </View>
   );
 }
-

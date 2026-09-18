@@ -1,226 +1,55 @@
 import { useNavigation, useFocusEffect } from "@react-navigation/native";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { useCallback, useMemo, useState } from "react";
-import { ActivityIndicator, Alert, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
-import { Ionicons } from "@expo/vector-icons";
+import { ActivityIndicator, Alert, Pressable, ScrollView, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { api } from "../../actions/api";
 import nav from "../../actions/navigation";
 import { clearSession } from "../../actions/session";
+import { styles } from "../../actions/styles";
+import AppLogo from "../../components/AppLogo";
+import Badge from "../../components/Badge";
+import Button from "../../components/Button";
+import IconCircleButton from "../../components/IconCircleButton";
+import Text from "../../components/Text";
+import colors from "../../configs/colors";
 
 type ProfileScreenNavigationProp = NativeStackNavigationProp<any, "ProfileTab">;
 
-const localStyles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: "#eef3f8"
-  },
-  content: {
-    paddingHorizontal: 16,
-    paddingTop: 14,
-    paddingBottom: 30,
-    gap: 14
-  },
-  header: {
-    marginBottom: 6
-  },
-  headerTitle: {
-    fontSize: 30,
-    fontWeight: "700",
-    color: "#0f172a",
-    marginBottom: 4
-  },
-  headerSubtitle: {
-    fontSize: 14,
-    color: "#64748b"
-  },
-  heroCard: {
-    backgroundColor: "#0f2742",
-    borderRadius: 18,
-    padding: 18,
-    gap: 14,
-    shadowColor: "#0f172a",
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.18,
-    shadowRadius: 18,
-    elevation: 6
-  },
-  heroTop: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 12
-  },
-  avatarCircle: {
-    width: 58,
-    height: 58,
-    borderRadius: 29,
-    backgroundColor: "#223a59",
-    borderWidth: 1,
-    borderColor: "#355171",
-    alignItems: "center",
-    justifyContent: "center"
-  },
-  avatarInitials: {
-    color: "#e2e8f0",
-    fontSize: 20,
-    fontWeight: "700"
-  },
-  heroIdentity: {
-    flex: 1,
-    gap: 2
-  },
-  heroName: {
-    fontSize: 20,
-    fontWeight: "700",
-    color: "#f8fafc"
-  },
-  heroHeadline: {
-    fontSize: 13,
-    color: "#cbd5e1"
-  },
-  heroTag: {
-    alignSelf: "flex-start",
-    marginTop: 4,
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    borderRadius: 999,
-    borderWidth: 1,
-    borderColor: "#3b5778",
-    backgroundColor: "#1b3453"
-  },
-  heroTagText: {
-    color: "#dbeafe",
-    fontSize: 11,
-    fontWeight: "600",
-    letterSpacing: 0.2
-  },
-  quickActions: {
-    flexDirection: "row",
-    gap: 10
-  },
-  quickActionButton: {
-    flex: 1,
-    backgroundColor: "#e2e8f0",
-    borderRadius: 12,
-    paddingVertical: 12,
-    alignItems: "center"
-  },
-  quickActionText: {
-    fontSize: 13,
-    fontWeight: "700",
-    color: "#0f172a"
-  },
-  section: {
-    gap: 10
-  },
-  sectionTitle: {
-    fontSize: 12,
-    fontWeight: "700",
-    color: "#64748b",
-    textTransform: "uppercase",
-    letterSpacing: 0.7
-  },
-  listCard: {
-    backgroundColor: "#fff",
-    borderRadius: 14,
-    borderWidth: 1,
-    borderColor: "#e2e8f0",
-    overflow: "hidden"
-  },
-  menuItem: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    paddingHorizontal: 14,
-    paddingVertical: 14
-  },
-  menuLeft: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 10,
-    flex: 1
-  },
-  menuIcon: {
-    width: 34,
-    height: 34,
-    borderRadius: 9,
-    backgroundColor: "#f1f5f9",
-    alignItems: "center",
-    justifyContent: "center"
-  },
-  menuIconText: {
-    fontSize: 12,
-    fontWeight: "800",
-    color: "#334155"
-  },
-  menuTextWrap: {
-    flex: 1
-  },
-  menuItemText: {
-    fontSize: 15,
-    color: "#0f172a",
-    fontWeight: "600"
-  },
-  menuItemDescription: {
-    fontSize: 13,
-    color: "#64748b",
-    marginBottom: 2
-  },
-  arrow: {
-    fontSize: 18,
-    color: "#0c4a6e"
-  },
-  divider: {
-    height: 1,
-    backgroundColor: "#e2e8f0",
-    marginLeft: 58
-  },
-  loadingWrap: {
-    paddingVertical: 36,
-    alignItems: "center",
-    gap: 12
-  },
-  loadingText: {
-    fontSize: 13,
-    color: "#64748b"
-  },
-  actionsCard: {
-    backgroundColor: "#fff",
-    borderRadius: 14,
-    borderWidth: 1,
-    borderColor: "#e2e8f0",
-    padding: 12,
-    gap: 10
-  },
-  logoutButton: {
-    backgroundColor: "#e2e8f0",
-    borderRadius: 10,
-    paddingVertical: 12,
-    paddingHorizontal: 14,
-    alignItems: "center",
-    borderWidth: 1,
-    borderColor: "#dbe3ee"
-  },
-  logoutButtonText: {
-    fontSize: 15,
-    color: "#0f172a",
-    fontWeight: "700"
-  },
-  deleteButton: {
-    backgroundColor: "#fff5f5",
-    borderRadius: 10,
-    paddingVertical: 12,
-    paddingHorizontal: 14,
-    alignItems: "center",
-    borderWidth: 1,
-    borderColor: "#fca5a5"
-  },
-  deleteButtonText: {
-    fontSize: 15,
-    color: "#b91c1c",
-    fontWeight: "600"
-  }
-});
+type MenuItem = {
+  icon: keyof typeof import("@expo/vector-icons").Ionicons.glyphMap;
+  title: string;
+  description: string;
+  onPress: () => void;
+};
+
+function MenuList({ items }: { items: MenuItem[] }) {
+  return (
+    <View style={[styles.card, { padding: 8, gap: 0 }]}>
+      {items.map((item, index) => (
+        <View key={item.title}>
+          <Pressable
+            style={({ pressed }) => [
+              { flexDirection: "row", alignItems: "center", gap: 12, paddingHorizontal: 10, paddingVertical: 12 },
+              pressed && { opacity: 0.7 }
+            ]}
+            onPress={item.onPress}
+          >
+            <IconCircleButton icon={item.icon} size={38} style={{ backgroundColor: colors.inputBg }} />
+            <View style={{ flex: 1 }}>
+              <Text style={styles.title}>{item.title}</Text>
+              <Text style={[styles.status, { marginTop: 2 }]}>{item.description}</Text>
+            </View>
+            <IconCircleButton icon="chevron-forward" size={28} style={{ backgroundColor: "transparent", borderWidth: 0 }} />
+          </Pressable>
+          {index < items.length - 1 ? (
+            <View style={{ height: 1, backgroundColor: colors.borderColor, marginLeft: 58 }} />
+          ) : null}
+        </View>
+      ))}
+    </View>
+  );
+}
 
 export default function ProfileScreen() {
   const navigation = useNavigation<ProfileScreenNavigationProp>();
@@ -294,149 +123,118 @@ export default function ProfileScreen() {
   }
 
   return (
-    <View style={localStyles.container}>
-      <ScrollView contentContainerStyle={localStyles.content} keyboardShouldPersistTaps="handled">
-        <View
-          style={[
-            localStyles.heroCard,
-            {
-              marginHorizontal: -16,
-              marginTop: -14,
-              paddingTop: insets.top + 16,
-              paddingHorizontal: 16,
-              paddingBottom: 16
-            }
-          ]}
-        >
-          <View style={localStyles.heroTop}>
-            <View style={localStyles.avatarCircle}>
-              <Text style={localStyles.avatarInitials}>{initials}</Text>
-            </View>
-            <View style={localStyles.heroIdentity}>
-              <Text style={localStyles.heroName}>{profile?.displayName ?? "Teacher Account"}</Text>
-              <Text style={localStyles.heroHeadline}>{profile?.headline || "Teacher"}</Text>
-              <View style={localStyles.heroTag}>
-                <Text style={localStyles.heroTagText}>PROFILE READY</Text>
+    <View style={styles.safe}>
+      <ScrollView contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
+        <View style={styles.container}>
+          <View
+            style={[
+              styles.heroCard,
+              {
+                marginBottom: 2,
+                marginHorizontal: -20,
+                marginTop: -20,
+                paddingTop: insets.top + 16,
+                paddingHorizontal: 16,
+                paddingBottom: 20,
+                gap: 14
+              }
+            ]}
+          >
+            <View style={{ flexDirection: "row", alignItems: "center", gap: 14 }}>
+              <AppLogo size={58} icon="person" />
+              <View style={{ flex: 1, gap: 2 }}>
+                <Text style={styles.heroTitle}>{profile?.displayName ?? "Teacher Account"}</Text>
+                <Text style={styles.heroSubtitle}>{profile?.headline || "Teacher"}</Text>
+                <Badge label="Profile Ready" tone="cyan" style={{ marginTop: 6 }} />
               </View>
             </View>
+
+            <View style={{ flexDirection: "row", gap: 12 }}>
+              <Button
+                title="Edit Profile"
+                variant="secondary"
+                icon="create-outline"
+                onPress={() => navigation.navigate("UpdateProfileFromDashboard")}
+                style={{ flex: 1, height: 48 }}
+              />
+              <Button
+                title="Password"
+                variant="secondary"
+                icon="lock-closed-outline"
+                onPress={() => navigation.navigate("UpdatePassword")}
+                style={{ flex: 1, height: 48 }}
+              />
+            </View>
           </View>
 
-          <View style={localStyles.quickActions}>
-            <Pressable style={localStyles.quickActionButton} onPress={() => navigation.navigate("UpdateProfileFromDashboard")}>
-              <Text style={localStyles.quickActionText}>Edit Profile</Text>
-            </Pressable>
-            <Pressable style={localStyles.quickActionButton} onPress={() => navigation.navigate("UpdatePassword")}>
-              <Text style={localStyles.quickActionText}>Password</Text>
-            </Pressable>
-          </View>
-        </View>
+          {loadingProfile ? (
+            <View style={styles.emptyContainer}>
+              <ActivityIndicator size="small" color={colors.primary} />
+              <Text style={[styles.emptyText, { marginTop: 8 }]}>Refreshing your profile...</Text>
+            </View>
+          ) : null}
 
-        {loadingProfile ? (
-          <View style={localStyles.loadingWrap}>
-            <ActivityIndicator size="small" color="#2563eb" />
-            <Text style={localStyles.loadingText}>Refreshing your profile...</Text>
+          <View style={{ gap: 10 }}>
+            <Text style={styles.sectionLabel}>Account</Text>
+            <MenuList
+              items={[
+                {
+                  icon: "person-outline",
+                  title: "Edit Profile Details",
+                  description: "Personal information and public bio",
+                  onPress: () => navigation.navigate("UpdateProfileFromDashboard")
+                }
+              ]}
+            />
           </View>
-        ) : null}
 
-        <View style={localStyles.section}>
-          <Text style={localStyles.sectionTitle}>Account</Text>
-          <View style={localStyles.listCard}>
-            <Pressable
-              style={localStyles.menuItem}
-              onPress={() => navigation.navigate("UpdateProfileFromDashboard")}
-            >
-              <View style={localStyles.menuLeft}>
-                <View style={localStyles.menuIcon}>
-                  <Ionicons name="person-outline" size={18} color="#334155" />
-                </View>
-                <View style={localStyles.menuTextWrap}>
-                  <Text style={localStyles.menuItemDescription}>Personal information and public bio</Text>
-                  <Text style={localStyles.menuItemText}>Edit Profile Details</Text>
-                </View>
-              </View>
-              <Text style={localStyles.arrow}>{">"}</Text>
-            </Pressable>
+          <View style={{ gap: 10, marginTop: 20 }}>
+            <Text style={styles.sectionLabel}>Security</Text>
+            <MenuList
+              items={[
+                {
+                  icon: "lock-closed-outline",
+                  title: "Change Password",
+                  description: "Keep your account secure",
+                  onPress: () => navigation.navigate("UpdatePassword")
+                },
+                {
+                  icon: "log-out-outline",
+                  title: "Log Out",
+                  description: "End this session on this device",
+                  onPress: logout
+                }
+              ]}
+            />
           </View>
-        </View>
 
-        <View style={localStyles.section}>
-          <Text style={localStyles.sectionTitle}>Security</Text>
-          <View style={localStyles.listCard}>
-            <Pressable
-              style={localStyles.menuItem}
-              onPress={() => navigation.navigate("UpdatePassword")}
-            >
-              <View style={localStyles.menuLeft}>
-                <View style={localStyles.menuIcon}>
-                  <Ionicons name="lock-closed-outline" size={18} color="#334155" />
-                </View>
-                <View style={localStyles.menuTextWrap}>
-                  <Text style={localStyles.menuItemDescription}>Keep your account secure</Text>
-                  <Text style={localStyles.menuItemText}>Change Password</Text>
-                </View>
-              </View>
-              <Text style={localStyles.arrow}>{">"}</Text>
-            </Pressable>
-            <View style={localStyles.divider} />
-            <Pressable style={localStyles.menuItem} onPress={logout}>
-              <View style={localStyles.menuLeft}>
-                <View style={localStyles.menuIcon}>
-                  <Ionicons name="log-out-outline" size={18} color="#334155" />
-                </View>
-                <View style={localStyles.menuTextWrap}>
-                  <Text style={localStyles.menuItemDescription}>End this session on this device</Text>
-                  <Text style={localStyles.menuItemText}>Log Out</Text>
-                </View>
-              </View>
-              <Text style={localStyles.arrow}>{">"}</Text>
-            </Pressable>
+          <View style={{ gap: 10, marginTop: 20 }}>
+            <Text style={styles.sectionLabel}>Resources</Text>
+            <MenuList
+              items={[
+                {
+                  icon: "shield-checkmark-outline",
+                  title: "Privacy Policy",
+                  description: "How we collect and protect your data",
+                  onPress: openPrivacyPolicy
+                },
+                {
+                  icon: "headset-outline",
+                  title: "Support",
+                  description: "Need help? Contact our support team",
+                  onPress: openSupport
+                }
+              ]}
+            />
           </View>
-        </View>
 
-        <View style={localStyles.section}>
-          <Text style={localStyles.sectionTitle}>Resources</Text>
-          <View style={localStyles.listCard}>
-            <Pressable style={localStyles.menuItem} onPress={openPrivacyPolicy}>
-              <View style={localStyles.menuLeft}>
-                <View style={localStyles.menuIcon}>
-                  <Ionicons name="shield-checkmark-outline" size={18} color="#334155" />
-                </View>
-                <View style={localStyles.menuTextWrap}>
-                  <Text style={localStyles.menuItemDescription}>How we collect and protect your data</Text>
-                  <Text style={localStyles.menuItemText}>Privacy Policy</Text>
-                </View>
-              </View>
-              <Text style={localStyles.arrow}>{">"}</Text>
-            </Pressable>
-            <View style={localStyles.divider} />
-            <Pressable style={localStyles.menuItem} onPress={openSupport}>
-              <View style={localStyles.menuLeft}>
-                <View style={localStyles.menuIcon}>
-                  <Ionicons name="headset-outline" size={18} color="#334155" />
-                </View>
-                <View style={localStyles.menuTextWrap}>
-                  <Text style={localStyles.menuItemDescription}>Need help? Contact our support team</Text>
-                  <Text style={localStyles.menuItemText}>Support</Text>
-                </View>
-              </View>
-              <Text style={localStyles.arrow}>{">"}</Text>
-            </Pressable>
-          </View>
-        </View>
-
-        <View style={localStyles.section}>
-          <Text style={localStyles.sectionTitle}>Danger Zone</Text>
-          <View style={localStyles.actionsCard}>
-            <Pressable style={localStyles.logoutButton} onPress={logout}>
-              <Text style={localStyles.logoutButtonText}>Log Out</Text>
-            </Pressable>
-            <Pressable style={localStyles.deleteButton} onPress={deleteAccount}>
-              <Text style={localStyles.deleteButtonText}>Delete Account</Text>
-            </Pressable>
+          <View style={{ gap: 12, marginTop: 20 }}>
+            <Text style={styles.sectionLabel}>Danger Zone</Text>
+            <Button title="Log Out" variant="secondary" icon="log-out-outline" onPress={logout} />
+            <Button title="Delete Account" variant="dark" icon="trash-outline" onPress={deleteAccount} />
           </View>
         </View>
       </ScrollView>
     </View>
   );
 }
-

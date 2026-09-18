@@ -1,20 +1,21 @@
 import { useEffect, useState } from "react";
-import { Ionicons } from "@expo/vector-icons";
-import { Alert, KeyboardAvoidingView, Platform, Pressable, ScrollView, TextInput, View } from "react-native";
-import Text from "../../components/Text";
+import { Alert, KeyboardAvoidingView, Platform, ScrollView, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { api } from "../../actions/api";
 import nav from "../../actions/navigation";
 import { clearSession } from "../../actions/session";
 import { styles } from "../../actions/styles";
+import AppLogo from "../../components/AppLogo";
+import Badge from "../../components/Badge";
+import Button from "../../components/Button";
+import FormInput from "../../components/FormInput";
+import Text from "../../components/Text";
 
 export default function ProfileScreen({ navigation }: any) {
   const insets = useSafeAreaInsets();
   const [profile, setProfile] = useState<{ displayName?: string; learningGoal?: string } | null>(null);
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
-  const [showCurrentPassword, setShowCurrentPassword] = useState(false);
-  const [showNewPassword, setShowNewPassword] = useState(false);
   const [loading, setLoading] = useState(false);
 
   async function refresh() {
@@ -89,112 +90,80 @@ export default function ProfileScreen({ navigation }: any) {
                   marginTop: -20,
                   paddingTop: insets.top + 16,
                   paddingHorizontal: 16,
-                  paddingBottom: 16
+                  paddingBottom: 20,
+                  gap: 14
                 }
               ]}
             >
-              <View style={styles.heroTopRow}>
-                <Text style={styles.heroTitle}>Profile</Text>
+              <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
+                <AppLogo size={52} />
+                <Badge label="Account" tone="pink" />
               </View>
-              <Text style={styles.heroEyebrow}>Account Settings</Text>
-              <Text style={styles.heroSubtitle}>Manage your account details and password.</Text>
+              <View>
+                <Text style={styles.heroTitle}>Profile</Text>
+                <Text style={[styles.heroEyebrow, { marginTop: 8 }]}>Account Settings</Text>
+                <Text style={[styles.heroSubtitle, { marginTop: 6 }]}>Manage your account details and password.</Text>
+              </View>
             </View>
 
             <View style={styles.card}>
-              <Text style={styles.title}>{profile?.displayName ?? "Your Name"}</Text>
-              <Text style={styles.status}>{profile?.learningGoal ?? "Learning Goal"}</Text>
-              <Pressable 
-                style={[styles.buttonSecondary, { marginTop: 12 }]}
+              <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
+                <View style={{ flex: 1, gap: 6 }}>
+                  <Text style={[styles.sectionLabel, { marginBottom: 2 }]}>Your Profile</Text>
+                  <Text style={[styles.title, { fontSize: 18 }]}>{profile?.displayName ?? "Your Name"}</Text>
+                  <Text style={styles.status}>{profile?.learningGoal ?? "Add a learning goal to personalize your practice."}</Text>
+                </View>
+                <Badge label={profile?.learningGoal ? "Active" : "Needs Update"} tone={profile?.learningGoal ? "cyan" : "yellow"} />
+              </View>
+              <Button
+                title="Edit Profile"
+                variant="secondary"
+                icon="create-outline"
                 onPress={() => navigation.navigate("UpdateProfileFromDashboard")}
-              >
-                <Text style={styles.buttonSecondaryText}>Edit Profile</Text>
-              </Pressable>
+              />
             </View>
 
-            <Text style={styles.sectionTitle}>Change Password</Text>
-            <View style={{ gap: 12 }}>
-              <View>
-                <Text style={[styles.title, { marginBottom: 8 }]}>Current Password</Text>
-                <View style={{ flexDirection: "row", alignItems: "center", position: "relative" }}>
-                  <TextInput
-                    value={currentPassword}
-                    onChangeText={setCurrentPassword}
-                    placeholder="Enter current password"
-                    placeholderTextColor="#9ca3af"
-                    secureTextEntry={!showCurrentPassword}
-                    editable={!loading}
-                    style={[styles.input, { flex: 1, paddingRight: 48 }]}
-                  />
-                  <Pressable
-                    onPress={() => setShowCurrentPassword(!showCurrentPassword)}
-                    disabled={loading}
-                    style={({ pressed }) => ({
-                      position: "absolute",
-                      right: 12,
-                      padding: 8,
-                      opacity: pressed ? 0.6 : 1
-                    })}
-                  >
-                    <Ionicons
-                      name={showCurrentPassword ? "eye" : "eye-off"}
-                      size={20}
-                      color="#64748b"
-                    />
-                  </Pressable>
-                </View>
+            <View style={styles.card}>
+              <Text style={styles.sectionTitle}>Change Password</Text>
+              <Text style={[styles.status, { marginTop: -4 }]}>Use your current password to set a new one.</Text>
+
+              <View style={{ gap: 14 }}>
+                <FormInput
+                  label="Current Password"
+                  icon="lock-closed-outline"
+                  isPassword
+                  value={currentPassword}
+                  onChangeText={setCurrentPassword}
+                  placeholder="Enter current password"
+                  editable={!loading}
+                />
+
+                <FormInput
+                  label="New Password"
+                  icon="sparkles-outline"
+                  isPassword
+                  value={newPassword}
+                  onChangeText={setNewPassword}
+                  placeholder="Enter new password"
+                  editable={!loading}
+                />
+
+                <Button
+                  title={loading ? "Updating..." : "Update Password"}
+                  icon="arrow-forward"
+                  onPress={updatePassword}
+                  loading={loading}
+                />
               </View>
-              <View>
-                <Text style={[styles.title, { marginBottom: 8 }]}>New Password</Text>
-                <View style={{ flexDirection: "row", alignItems: "center", position: "relative" }}>
-                  <TextInput
-                    value={newPassword}
-                    onChangeText={setNewPassword}
-                    placeholder="Enter new password"
-                    placeholderTextColor="#9ca3af"
-                    secureTextEntry={!showNewPassword}
-                    editable={!loading}
-                    style={[styles.input, { flex: 1, paddingRight: 48 }]}
-                  />
-                  <Pressable
-                    onPress={() => setShowNewPassword(!showNewPassword)}
-                    disabled={loading}
-                    style={({ pressed }) => ({
-                      position: "absolute",
-                      right: 12,
-                      padding: 8,
-                      opacity: pressed ? 0.6 : 1
-                    })}
-                  >
-                    <Ionicons
-                      name={showNewPassword ? "eye" : "eye-off"}
-                      size={20}
-                      color="#64748b"
-                    />
-                  </Pressable>
-                </View>
-              </View>
-              <Pressable
-                style={[styles.button, loading && styles.buttonDisabled]}
-                onPress={updatePassword}
-                disabled={loading}
-              >
-                <Text style={styles.buttonText}>{loading ? "Updating..." : "Update Password"}</Text>
-              </Pressable>
             </View>
 
-            <View style={{ marginTop: 24, gap: 12 }}>
-              <Pressable
-                style={styles.buttonSecondary}
-                onPress={logout}
-              >
-                <Text style={styles.buttonSecondaryText}>Log Out</Text>
-              </Pressable>
-              <Pressable
-                style={[styles.button, styles.buttonDanger]}
-                onPress={deleteAccount}
-              >
-                <Text style={styles.buttonText}>Delete Account</Text>
-              </Pressable>
+            <View style={styles.card}>
+              <Text style={styles.sectionTitle}>Session</Text>
+              <Text style={[styles.status, { marginTop: -4 }]}>Sign out on this device or permanently remove your account.</Text>
+              <View style={{ gap: 12 }}>
+                <Button title="Log Out" variant="secondary" icon="log-out-outline" onPress={logout} />
+                <Button title="Delete Account" variant="dark" icon="trash-outline" onPress={deleteAccount} />
+              </View>
             </View>
           </View>
         </ScrollView>

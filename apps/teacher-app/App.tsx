@@ -1,11 +1,12 @@
 import React, { useEffect, useState } from "react";
-import { NavigationContainer } from "@react-navigation/native";
+import { NavigationContainer, useNavigation } from "@react-navigation/native";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 import { ActivityIndicator, View } from "react-native";
-import { Ionicons } from "@expo/vector-icons";
 import { isReadyRef, navigationRef } from "./src/actions/navigation";
 import { getSessionUserId } from "./src/actions/session";
+import colors from "./src/configs/colors";
+import FloatingTabBar from "./src/components/FloatingTabBar";
 
 // Import screens from their locations
 import LoginScreen from "./src/app/login";
@@ -28,28 +29,27 @@ import SubmissionReviewScreen from "./src/app/dashboard/submission-review";
 const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
 
+const TAB_ICONS = {
+  ChallengesTab: { active: "videocam" as const, inactive: "videocam-outline" as const, label: "Challenges" },
+  ClassesTab: { active: "people" as const, inactive: "people-outline" as const, label: "Classes" },
+  ProfileTab: { active: "person" as const, inactive: "person-outline" as const, label: "Profile" }
+};
+
 function DashboardTabs() {
+  const navigation = useNavigation<any>();
+
   return (
     <Tab.Navigator
-      screenOptions={({ route }) => ({
-        headerShown: false,
-        tabBarLabelPosition: "below-icon",
-        tabBarActiveTintColor: "#0369a1",
-        tabBarInactiveTintColor: "#64748b",
-        tabBarIcon: ({ focused, color, size }) => {
-          let iconName: keyof typeof Ionicons.glyphMap = "ellipse";
-
-          if (route.name === "ChallengesTab") {
-            iconName = focused ? "videocam" : "videocam-outline";
-          } else if (route.name === "ClassesTab") {
-            iconName = focused ? "people" : "people-outline";
-          } else if (route.name === "ProfileTab") {
-            iconName = focused ? "person" : "person-outline";
-          }
-
-          return <Ionicons name={iconName} size={size} color={color} />;
-        }
-      })}
+      tabBar={(props) => (
+        <FloatingTabBar
+          {...props}
+          icons={TAB_ICONS}
+          centerAction={{ icon: "add", onPress: () => navigation.navigate("RecordVideo") }}
+        />
+      )}
+      screenOptions={{
+        headerShown: false
+      }}
     >
       <Tab.Screen 
         name="ChallengesTab" 
@@ -174,7 +174,7 @@ export default function RootNavigator() {
 
   if (isLoading) {
     return (
-      <View style={{ flex: 1, justifyContent: "center", alignItems: "center", backgroundColor: "#eef3f8" }}>
+      <View style={{ flex: 1, justifyContent: "center", alignItems: "center", backgroundColor: "#1a1a2e" }}>
         <ActivityIndicator size="large" />
       </View>
     );
