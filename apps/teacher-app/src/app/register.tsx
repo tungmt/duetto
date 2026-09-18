@@ -1,11 +1,17 @@
 import { useNavigation } from "@react-navigation/native";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { useState } from "react";
-import { Alert, KeyboardAvoidingView, Platform, Pressable, ScrollView, Text, TextInput, View } from "react-native";
-import { Ionicons } from "@expo/vector-icons";
+import { Alert, KeyboardAvoidingView, Platform, ScrollView, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { api } from "../actions/api";
 import { styles } from "../actions/styles";
+import colors from "../configs/colors";
+import Text from "../components/Text";
+import AppLogo from "../components/AppLogo";
+import Badge from "../components/Badge";
+import Button from "../components/Button";
+import FormInput from "../components/FormInput";
+import IconCircleButton from "../components/IconCircleButton";
 
 type RegisterScreenNavigationProp = NativeStackNavigationProp<any, "Register">;
 
@@ -16,8 +22,6 @@ export default function RegisterScreen() {
   const [name, setName] = useState("Teacher");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
-  const [showPassword, setShowPassword] = useState(false);
-  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [loading, setLoading] = useState(false);
 
   async function register() {
@@ -56,127 +60,80 @@ export default function RegisterScreen() {
     <View style={styles.safe}>
       <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : "height"} style={{ flex: 1 }}>
         <ScrollView contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
-          <View
-            style={[
-              styles.heroCard,
-              {
-                marginBottom: 16,
-                paddingTop: insets.top + 16,
-                paddingHorizontal: 16,
-                paddingBottom: 16
-              }
-            ]}
-          >
-            <View style={styles.heroTopRow}>
-              <Text style={styles.heroTitle}>Create Account</Text>
+          <View style={{ paddingHorizontal: 20, paddingTop: insets.top + 12, paddingBottom: 24 }}>
+            <View style={{ flexDirection: "row", alignItems: "center", justifyContent: navigation.canGoBack() ? "space-between" : "flex-end", marginBottom: 20 }}>
+              {navigation.canGoBack() ? (
+                <IconCircleButton icon="arrow-back" onPress={() => navigation.goBack()} />
+              ) : null}
+              <Badge label="Educator Onboarding" tone="neutral" />
             </View>
-            <Text style={styles.heroEyebrow}>Teacher Onboarding</Text>
-            <Text style={styles.heroSubtitle}>Join as a teacher to create challenges.</Text>
-          </View>
 
-          <View style={{ gap: 12, marginHorizontal: 16 }}>
-            <View>
-              <Text style={[styles.title, { marginBottom: 8 }]}>Full Name</Text>
-              <TextInput
+            <AppLogo color={colors.secondary} icon="sparkles" />
+
+            <Text style={[styles.heading, { marginTop: 20, marginBottom: 6 }]}>Join duetTo</Text>
+            <Text style={[styles.subheading, { marginBottom: 28 }]}>
+              Create your teacher account to publish challenges and mentor students.
+            </Text>
+
+            <View style={{ gap: 18 }}>
+              <FormInput
+                label="Full Name"
+                icon="person-outline"
                 value={name}
                 onChangeText={setName}
                 placeholder="Enter your full name"
-                placeholderTextColor="#9ca3af"
                 editable={!loading}
-                style={styles.input}
               />
-            </View>
-            <View>
-              <Text style={[styles.title, { marginBottom: 8 }]}>Email</Text>
-              <TextInput
+
+              <FormInput
+                label="Email"
+                icon="mail-outline"
                 value={email}
                 onChangeText={setEmail}
                 placeholder="teacher@example.com"
-                placeholderTextColor="#9ca3af"
                 autoCapitalize="none"
                 keyboardType="email-address"
                 editable={!loading}
-                style={styles.input}
+              />
+
+              <FormInput
+                label="Create Password"
+                icon="lock-closed-outline"
+                isPassword
+                value={password}
+                onChangeText={setPassword}
+                placeholder="At least 6 characters"
+                editable={!loading}
+              />
+
+              <FormInput
+                label="Confirm Password"
+                icon="checkmark-circle-outline"
+                isPassword
+                value={confirmPassword}
+                onChangeText={setConfirmPassword}
+                placeholder="Re-enter password"
+                editable={!loading}
+              />
+
+              <Button
+                title={loading ? "Creating account..." : "Create Account"}
+                icon="create-outline"
+                onPress={register}
+                loading={loading}
+                style={{ marginTop: 4 }}
               />
             </View>
-            <View>
-              <Text style={[styles.title, { marginBottom: 8 }]}>Password</Text>
-              <View style={{ flexDirection: "row", alignItems: "center", position: "relative" }}>
-                <TextInput
-                  value={password}
-                  onChangeText={setPassword}
-                  placeholder="At least 6 characters"
-                  placeholderTextColor="#9ca3af"
-                  secureTextEntry={!showPassword}
-                  editable={!loading}
-                  style={[styles.input, { flex: 1, paddingRight: 48 }]}
-                />
-                <Pressable
-                  onPress={() => setShowPassword(!showPassword)}
-                  disabled={loading}
-                  style={({ pressed }) => ({
-                    position: "absolute",
-                    right: 12,
-                    padding: 8,
-                    opacity: pressed ? 0.6 : 1
-                  })}
-                >
-                  <Ionicons
-                    name={showPassword ? "eye" : "eye-off"}
-                    size={20}
-                    color="#64748b"
-                  />
-                </Pressable>
-              </View>
-            </View>
-            <View>
-              <Text style={[styles.title, { marginBottom: 8 }]}>Confirm Password</Text>
-              <View style={{ flexDirection: "row", alignItems: "center", position: "relative" }}>
-                <TextInput
-                  value={confirmPassword}
-                  onChangeText={setConfirmPassword}
-                  placeholder="Re-enter password"
-                  placeholderTextColor="#9ca3af"
-                  secureTextEntry={!showConfirmPassword}
-                  editable={!loading}
-                  style={[styles.input, { flex: 1, paddingRight: 48 }]}
-                />
-                <Pressable
-                  onPress={() => setShowConfirmPassword(!showConfirmPassword)}
-                  disabled={loading}
-                  style={({ pressed }) => ({
-                    position: "absolute",
-                    right: 12,
-                    padding: 8,
-                    opacity: pressed ? 0.6 : 1
-                  })}
-                >
-                  <Ionicons
-                    name={showConfirmPassword ? "eye" : "eye-off"}
-                    size={20}
-                    color="#64748b"
-                  />
-                </Pressable>
-              </View>
-            </View>
-
-            <Pressable
-              style={[styles.button, loading && styles.buttonDisabled]}
-              onPress={register}
-              disabled={loading}
-            >
-              <Text style={styles.buttonText}>{loading ? "Creating account..." : "Create Account"}</Text>
-            </Pressable>
-          </View>
-
-          <View style={{ marginTop: 24, marginHorizontal: 16 }}>
-            <Pressable onPress={() => navigation.navigate("Login")}>
-              <Text style={styles.link}>Already have an account? Sign in</Text>
-            </Pressable>
           </View>
         </ScrollView>
       </KeyboardAvoidingView>
+
+      <View style={{ marginTop: 12, alignItems: "center", marginBottom: insets.bottom + 24 }}>
+        <Text style={{ fontSize: 14, color: colors.textSecondary }}>
+          Already have an account?
+          <Text onPress={() => navigation.navigate("Login")} style={{ color: colors.secondary, fontWeight: "bold" }}>{` Sign in`}</Text>
+        </Text>
+      </View>
     </View>
   );
 }
-

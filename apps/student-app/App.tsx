@@ -3,10 +3,10 @@ import { NavigationContainer } from "@react-navigation/native";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 import { ActivityIndicator, View } from "react-native";
-import { Ionicons } from "@expo/vector-icons";
 import { useFonts } from "expo-font";
 import { getSessionUserId } from "./src/actions/session";
 import { isReadyRef, navigationRef } from "./src/actions/navigation";
+import colors from "./src/configs/colors";
 
 // Import screens from their locations
 import LoginScreen from "./src/app/login";
@@ -20,6 +20,7 @@ import SubmissionsScreen from "./src/app/dashboard/submissions";
 import SubmissionDetailScreen from "./src/app/dashboard/submission-detail";
 import ProfileScreen from "./src/app/dashboard/profile";
 import TeacherDetailScreen from "./src/app/dashboard/teacher-detail";
+import FloatingTabBar from "./src/components/FloatingTabBar";
 
 const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
@@ -27,25 +28,10 @@ const Tab = createBottomTabNavigator();
 function DashboardTabs() {
   return (
     <Tab.Navigator
-      screenOptions={({ route }) => ({
-        headerShown: false,
-        tabBarLabelPosition: "below-icon",
-        tabBarActiveTintColor: "#0369a1",
-        tabBarInactiveTintColor: "#64748b",
-        tabBarIcon: ({ focused, color, size }) => {
-          let iconName: keyof typeof Ionicons.glyphMap = "ellipse";
-
-          if (route.name === "ChallengesTab") {
-            iconName = focused ? "play-circle" : "play-circle-outline";
-          } else if (route.name === "SubmissionsTab") {
-            iconName = focused ? "checkmark-done" : "checkmark-done-outline";
-          } else if (route.name === "ProfileTab") {
-            iconName = focused ? "person" : "person-outline";
-          }
-
-          return <Ionicons name={iconName} size={size} color={color} />;
-        }
-      })}
+      tabBar={(props) => <FloatingTabBar {...props} />}
+      screenOptions={{
+        headerShown: false
+      }}
     >
       <Tab.Screen 
         name="ChallengesTab" 
@@ -148,8 +134,8 @@ export default function RootNavigator() {
 
   if (isLoading || (!fontsLoaded && !fontError)) {
     return (
-      <View style={{ flex: 1, justifyContent: "center", alignItems: "center", backgroundColor: "#eef3f8" }}>
-        <ActivityIndicator size="large" />
+      <View style={{ flex: 1, justifyContent: "center", alignItems: "center", backgroundColor: colors.bgColor }}>
+        <ActivityIndicator size="large" color={colors.primary} />
       </View>
     );
   }

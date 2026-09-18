@@ -1,10 +1,14 @@
 import { useState } from "react";
-import { Ionicons } from "@expo/vector-icons";
-import { Alert, KeyboardAvoidingView, Platform, Pressable, ScrollView, TextInput, View } from "react-native";
+import { Alert, KeyboardAvoidingView, Platform, Pressable, ScrollView, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import Text from "../components/Text";
 import { api } from "../actions/api";
 import { styles } from "../actions/styles";
+import colors from "../configs/colors";
+import AppLogo from "../components/AppLogo";
+import Button from "../components/Button";
+import FormInput from "../components/FormInput";
+import IconCircleButton from "../components/IconCircleButton";
 
 type Step = "request" | "verify";
 
@@ -15,8 +19,6 @@ export default function ResetPasswordScreen({ navigation }: any) {
   const [code, setCode] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
-  const [showPassword, setShowPassword] = useState(false);
-  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [loading, setLoading] = useState(false);
 
   async function requestReset() {
@@ -77,147 +79,100 @@ export default function ResetPasswordScreen({ navigation }: any) {
     <View style={styles.safe}>
       <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : "height"} style={{ flex: 1 }}>
         <ScrollView contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
-          <View
-            style={[
-              styles.heroCard,
-              {
-                marginBottom: 16,
-                paddingTop: insets.top + 16,
-                paddingHorizontal: 16,
-                paddingBottom: 16
-              }
-            ]}
-          >
-            <View style={styles.heroTopRow}>
-              <Pressable onPress={() => { navigation.goBack(); setStep("request"); }} style={styles.backButton}>
-                <Text style={styles.backButtonText}>← Back</Text>
-              </Pressable>
-              <Text style={styles.heroTitle}>Reset Password</Text>
+          <View style={{ paddingHorizontal: 20, paddingTop: insets.top + 12, paddingBottom: 24 }}>
+            <View style={{ marginBottom: 20 }}>
+              <IconCircleButton
+                icon="arrow-back"
+                onPress={() => {
+                  navigation.goBack();
+                  setStep("request");
+                }}
+              />
             </View>
-            <Text style={styles.heroEyebrow}>Account Recovery</Text>
-            <Text style={styles.heroSubtitle}>
-              {step === "request" ? "We'll send you a code to reset your password." : "Enter the code and your new password."}
+
+            <AppLogo />
+
+            <Text style={[styles.heading, { marginTop: 20, marginBottom: 6 }]}>Reset Password</Text>
+            <Text style={[styles.subheading, { marginBottom: 28 }]}>
+              {step === "request"
+                ? "We'll send you a code to reset your password."
+                : "Enter the code and your new password."}
             </Text>
-          </View>
 
-          <View style={{ gap: 12, marginHorizontal: 16 }}>
             {step === "request" ? (
-              <>
-                <View>
-                  <Text style={[styles.title, { marginBottom: 8 }]}>Email Address</Text>
-                  <TextInput
-                    value={email}
-                    onChangeText={setEmail}
-                    placeholder="student@example.com"
-                    placeholderTextColor="#9ca3af"
-                    autoCapitalize="none"
-                    keyboardType="email-address"
-                    editable={!loading}
-                    style={styles.input}
-                  />
-                </View>
+              <View style={{ gap: 18 }}>
+                <FormInput
+                  label="Email Address"
+                  icon="mail-outline"
+                  value={email}
+                  onChangeText={setEmail}
+                  placeholder="student@example.com"
+                  autoCapitalize="none"
+                  keyboardType="email-address"
+                  editable={!loading}
+                />
 
-                <Pressable
-                  style={[styles.button, loading && styles.buttonDisabled]}
+                <Button
+                  title={loading ? "Sending..." : "Send Reset Code"}
+                  icon="paper-plane-outline"
                   onPress={requestReset}
-                  disabled={loading}
-                >
-                  <Text style={styles.buttonText}>{loading ? "Sending..." : "Send Reset Code"}</Text>
-                </Pressable>
-              </>
+                  loading={loading}
+                />
+              </View>
             ) : (
-              <>
-                <View>
-                  <Text style={[styles.title, { marginBottom: 8 }]}>Reset Code</Text>
-                  <TextInput
-                    value={code}
-                    onChangeText={setCode}
-                    placeholder="000000"
-                    placeholderTextColor="#9ca3af"
-                    keyboardType="number-pad"
-                    editable={!loading}
-                    style={styles.input}
-                  />
-                </View>
+              <View style={{ gap: 18 }}>
+                <FormInput
+                  label="Reset Code"
+                  icon="keypad-outline"
+                  value={code}
+                  onChangeText={setCode}
+                  placeholder="000000"
+                  keyboardType="number-pad"
+                  editable={!loading}
+                />
 
-                <View>
-                  <Text style={[styles.title, { marginBottom: 8 }]}>New Password</Text>
-                  <View style={{ flexDirection: "row", alignItems: "center", position: "relative" }}>
-                    <TextInput
-                      value={newPassword}
-                      onChangeText={setNewPassword}
-                      placeholder="Enter new password"
-                      placeholderTextColor="#9ca3af"
-                      secureTextEntry={!showPassword}
-                      editable={!loading}
-                      style={[styles.input, { flex: 1, paddingRight: 48 }]}
-                    />
-                    <Pressable
-                      onPress={() => setShowPassword(!showPassword)}
-                      disabled={loading}
-                      style={({ pressed }) => ({
-                        position: "absolute",
-                        right: 12,
-                        padding: 8,
-                        opacity: pressed ? 0.6 : 1
-                      })}
-                    >
-                      <Ionicons
-                        name={showPassword ? "eye" : "eye-off"}
-                        size={20}
-                        color="#64748b"
-                      />
-                    </Pressable>
-                  </View>
-                </View>
+                <FormInput
+                  label="New Password"
+                  icon="lock-closed-outline"
+                  isPassword
+                  value={newPassword}
+                  onChangeText={setNewPassword}
+                  placeholder="Enter new password"
+                  editable={!loading}
+                />
 
-                <View>
-                  <Text style={[styles.title, { marginBottom: 8 }]}>Confirm Password</Text>
-                  <View style={{ flexDirection: "row", alignItems: "center", position: "relative" }}>
-                    <TextInput
-                      value={confirmPassword}
-                      onChangeText={setConfirmPassword}
-                      placeholder="Confirm new password"
-                      placeholderTextColor="#9ca3af"
-                      secureTextEntry={!showConfirmPassword}
-                      editable={!loading}
-                      style={[styles.input, { flex: 1, paddingRight: 48 }]}
-                    />
-                    <Pressable
-                      onPress={() => setShowConfirmPassword(!showConfirmPassword)}
-                      disabled={loading}
-                      style={({ pressed }) => ({
-                        position: "absolute",
-                        right: 12,
-                        padding: 8,
-                        opacity: pressed ? 0.6 : 1
-                      })}
-                    >
-                      <Ionicons
-                        name={showConfirmPassword ? "eye" : "eye-off"}
-                        size={20}
-                        color="#64748b"
-                      />
-                    </Pressable>
-                  </View>
-                </View>
+                <FormInput
+                  label="Confirm Password"
+                  icon="checkmark-circle-outline"
+                  isPassword
+                  value={confirmPassword}
+                  onChangeText={setConfirmPassword}
+                  placeholder="Confirm new password"
+                  editable={!loading}
+                />
 
-                <Pressable
-                  style={[styles.button, loading && styles.buttonDisabled]}
+                <Button
+                  title={loading ? "Resetting..." : "Reset Password"}
+                  icon="checkmark-done-outline"
                   onPress={verifyAndReset}
-                  disabled={loading}
-                >
-                  <Text style={styles.buttonText}>{loading ? "Resetting..." : "Reset Password"}</Text>
-                </Pressable>
+                  loading={loading}
+                />
 
-                <Pressable onPress={() => setStep("request")} disabled={loading}>
-                  <Text style={styles.link}>Back to email entry</Text>
+                <Pressable onPress={() => setStep("request")} disabled={loading} style={{ alignItems: "center" }}>
+                  <Text style={{ color: colors.secondary, fontWeight: "700", fontSize: 14 }}>Back to email entry</Text>
                 </Pressable>
-              </>
+              </View>
             )}
 
-            <Pressable onPress={() => { navigation.goBack(); setStep("request"); }} disabled={loading}>
-              <Text style={styles.link}>Back to login</Text>
+            <Pressable
+              onPress={() => {
+                navigation.goBack();
+                setStep("request");
+              }}
+              disabled={loading}
+              style={{ alignItems: "center", marginTop: 20 }}
+            >
+              <Text style={{ color: colors.secondary, fontWeight: "700", fontSize: 14 }}>Back to login</Text>
             </Pressable>
           </View>
         </ScrollView>
@@ -225,4 +180,3 @@ export default function ResetPasswordScreen({ navigation }: any) {
     </View>
   );
 }
-

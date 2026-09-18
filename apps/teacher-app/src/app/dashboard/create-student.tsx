@@ -1,10 +1,17 @@
 import { RouteProp, useNavigation, useRoute } from "@react-navigation/native";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { useState } from "react";
-import { Alert, KeyboardAvoidingView, Platform, Pressable, ScrollView, Text, TextInput, View } from "react-native";
+import { Alert, KeyboardAvoidingView, Platform, ScrollView, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { api } from "../../actions/api";
 import { styles } from "../../actions/styles";
+import AppLogo from "../../components/AppLogo";
+import Badge from "../../components/Badge";
+import Button from "../../components/Button";
+import FormInput from "../../components/FormInput";
+import IconCircleButton from "../../components/IconCircleButton";
+import Text from "../../components/Text";
+import colors from "../../configs/colors";
 
 type CreateStudentRoute = RouteProp<
   { CreateStudent: { classId: string; className?: string } },
@@ -59,71 +66,62 @@ export default function CreateStudentScreen() {
     <View style={styles.safe}>
       <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : "height"} style={{ flex: 1 }}>
         <ScrollView contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
-          <View style={styles.container}>
-            <View
-              style={[
-                styles.heroCard,
-                {
-                  marginHorizontal: -20,
-                  marginTop: -20,
-                  paddingTop: insets.top + 16,
-                  paddingHorizontal: 16,
-                  paddingBottom: 16
-                }
-              ]}
-            >
-              <View style={styles.heroTopRow}>
-                <Pressable style={styles.backButton} onPress={() => navigation.goBack()} disabled={loading}>
-                  <Text style={styles.backButtonText}>← Back</Text>
-                </Pressable>
-                <Text style={styles.heroTitle}>Create Student</Text>
-              </View>
-              <Text style={styles.heroEyebrow}>Student Setup</Text>
-              <Text style={styles.heroSubtitle}>Create a student account for {className ?? "this class"}.</Text>
+          <View style={{ paddingHorizontal: 20, paddingTop: insets.top + 12, paddingBottom: 24 }}>
+            <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 20 }}>
+              <IconCircleButton icon="arrow-back" onPress={() => navigation.goBack()} />
+              <Badge label="Student Setup" tone="neutral" />
             </View>
+
+            <AppLogo color={colors.secondary} icon="person-add-outline" />
+
+            <Text style={[styles.heading, { marginTop: 20, marginBottom: 6 }]}>Create Student</Text>
+            <Text style={[styles.subheading, { marginBottom: 28 }]}>Create a student account for {className ?? "this class"} and share the generated credentials securely.</Text>
 
             <View style={styles.card}>
-              <Text style={styles.title}>Student Info</Text>
-              <Text style={styles.status}>A default password will be generated automatically.</Text>
+              <Badge label="Auto Password" tone="yellow" />
+              <Text style={[styles.subtitle, { marginTop: 0 }]}>A default password will be generated automatically after the account is created.</Text>
 
-              <View style={{ marginTop: 12 }}>
-                <Text style={[styles.title, { marginBottom: 8 }]}>Email</Text>
-                <TextInput
-                  value={email}
-                  onChangeText={setEmail}
-                  placeholder="student@example.com"
-                  placeholderTextColor="#9ca3af"
-                  autoCapitalize="none"
-                  keyboardType="email-address"
-                  editable={!loading}
-                  style={styles.input}
+              <FormInput
+                label="Email"
+                icon="mail-outline"
+                value={email}
+                onChangeText={setEmail}
+                placeholder="student@example.com"
+                autoCapitalize="none"
+                keyboardType="email-address"
+                editable={!loading}
+              />
+
+              <FormInput
+                label="Display Name (Optional)"
+                icon="person-outline"
+                value={displayName}
+                onChangeText={setDisplayName}
+                placeholder="Student full name"
+                editable={!loading}
+              />
+
+              <View style={{ gap: 12, marginTop: 4 }}>
+                <Button
+                  title={loading ? "Creating..." : "Create Student"}
+                  icon="person-add-outline"
+                  iconPosition="left"
+                  onPress={createStudent}
+                  loading={loading}
                 />
-              </View>
-
-              <View style={{ marginTop: 12 }}>
-                <Text style={[styles.title, { marginBottom: 8 }]}>Display Name (Optional)</Text>
-                <TextInput
-                  value={displayName}
-                  onChangeText={setDisplayName}
-                  placeholder="Student full name"
-                  placeholderTextColor="#9ca3af"
-                  editable={!loading}
-                  style={styles.input}
+                <Button
+                  title="Cancel"
+                  variant="secondary"
+                  icon="close-outline"
+                  iconPosition="left"
+                  onPress={() => navigation.goBack()}
+                  disabled={loading}
                 />
               </View>
             </View>
-
-            <Pressable
-              style={[styles.button, loading && styles.buttonDisabled]}
-              onPress={createStudent}
-              disabled={loading}
-            >
-              <Text style={styles.buttonText}>{loading ? "Creating..." : "Create Student"}</Text>
-            </Pressable>
           </View>
         </ScrollView>
       </KeyboardAvoidingView>
     </View>
   );
 }
-

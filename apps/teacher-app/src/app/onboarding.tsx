@@ -1,10 +1,17 @@
 import { useNavigation } from "@react-navigation/native";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { useState } from "react";
-import { Alert, KeyboardAvoidingView, Platform, Pressable, ScrollView, Text, TextInput, View } from "react-native";
+import { Alert, KeyboardAvoidingView, Platform, ScrollView, StyleSheet, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { api } from "../actions/api";
 import { styles } from "../actions/styles";
+import AppLogo from "../components/AppLogo";
+import Badge from "../components/Badge";
+import Button from "../components/Button";
+import FormInput from "../components/FormInput";
+import IconCircleButton from "../components/IconCircleButton";
+import Text from "../components/Text";
+import colors from "../configs/colors";
 
 type OnboardingScreenNavigationProp = NativeStackNavigationProp<any, "Onboarding">;
 
@@ -43,60 +50,52 @@ export default function OnboardingScreen() {
     <View style={styles.safe}>
       <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : "height"} style={{ flex: 1 }}>
         <ScrollView contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
-          <View style={styles.container}>
-            <View
-              style={[
-                styles.heroCard,
-                {
-                  marginBottom: 6,
-                  marginHorizontal: -20,
-                  marginTop: -20,
-                  paddingTop: insets.top + 16,
-                  paddingHorizontal: 16,
-                  paddingBottom: 16
-                }
-              ]}
-            >
-              <View style={styles.heroTopRow}>
-                <Text style={styles.heroTitle}>Welcome to Duetto</Text>
-              </View>
-              <Text style={styles.heroEyebrow}>Profile Setup</Text>
-              <Text style={styles.heroSubtitle}>Let us get your profile started with some basic information.</Text>
+          <View style={{ paddingHorizontal: 20, paddingTop: insets.top + 12, paddingBottom: 32 }}>
+            <View style={{ flexDirection: "row", alignItems: "center", justifyContent: navigation.canGoBack() ? "space-between" : "flex-end", marginBottom: 20 }}>
+              {navigation.canGoBack() ? (
+                <IconCircleButton icon="arrow-back" onPress={() => navigation.goBack()} />
+              ) : null}
+              <Badge label="Teacher Setup" tone="neutral" />
             </View>
 
-            <View style={{ gap: 12 }}>
-              <View>
-                <Text style={[styles.title, { marginBottom: 8 }]}>Full Name</Text>
-                <TextInput
-                  value={fullName}
-                  onChangeText={setFullName}
-                  placeholder="Enter your full name"
-                  placeholderTextColor="#9ca3af"
-                  editable={!loading}
-                  style={styles.input}
-                />
-              </View>
+            <AppLogo color={colors.secondary} icon="school-outline" />
 
-              <View>
-                <Text style={[styles.title, { marginBottom: 8 }]}>Phone Number</Text>
-                <TextInput
-                  value={phoneNumber}
-                  onChangeText={setPhoneNumber}
-                  placeholder="Enter your phone number"
-                  placeholderTextColor="#9ca3af"
-                  keyboardType="phone-pad"
-                  editable={!loading}
-                  style={styles.input}
-                />
-              </View>
+            <Text style={[styles.heading, { marginTop: 20, marginBottom: 6 }]}>Welcome to duetTo</Text>
+            <Text style={[styles.subheading, { marginBottom: 28 }]}>Let’s finish your teacher profile so you can publish challenges and guide students.</Text>
 
-              <Pressable
-                style={[styles.button, loading && styles.buttonDisabled]}
+            <View style={[styles.card, localStyles.infoCard]}>
+              <Badge label="Profile Setup" tone="pink" />
+              <Text style={styles.title}>A few details to get started</Text>
+              <Text style={styles.subtitle}>Your name and phone number help students and parents recognize you in the app.</Text>
+            </View>
+
+            <View style={{ gap: 18, marginTop: 20 }}>
+              <FormInput
+                label="Full Name"
+                icon="person-outline"
+                value={fullName}
+                onChangeText={setFullName}
+                placeholder="Enter your full name"
+                editable={!loading}
+              />
+
+              <FormInput
+                label="Phone Number"
+                icon="call-outline"
+                value={phoneNumber}
+                onChangeText={setPhoneNumber}
+                placeholder="Enter your phone number"
+                keyboardType="phone-pad"
+                editable={!loading}
+              />
+
+              <Button
+                title={loading ? "Setting up..." : "Get Started"}
+                icon="arrow-forward"
                 onPress={completeOnboarding}
-                disabled={loading}
-              >
-                <Text style={styles.buttonText}>{loading ? "Setting up..." : "Get Started"}</Text>
-              </Pressable>
+                loading={loading}
+                style={{ marginTop: 4 }}
+              />
             </View>
           </View>
         </ScrollView>
@@ -105,3 +104,9 @@ export default function OnboardingScreen() {
   );
 }
 
+const localStyles = StyleSheet.create({
+  infoCard: {
+    marginTop: 4,
+    gap: 10
+  }
+});

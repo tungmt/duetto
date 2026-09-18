@@ -1,9 +1,12 @@
 import { useEffect, useState } from "react";
-import { FlatList, Pressable, ScrollView, View } from "react-native";
-import Text from "../../components/Text";
+import { FlatList, ScrollView, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { api } from "../../actions/api";
 import { styles } from "../../actions/styles";
+import Badge from "../../components/Badge";
+import Button from "../../components/Button";
+import Text from "../../components/Text";
+import colors from "../../configs/colors";
 
 type Answer = {
   id: string;
@@ -13,6 +16,16 @@ type Answer = {
   answerMediaUrl: string;
   challenge?: { title: string };
 };
+
+function getStatusTone(status: string) {
+  if (status === "REVIEWED") {
+    return "cyan" as const;
+  }
+  if (status === "REJECTED") {
+    return "pink" as const;
+  }
+  return "neutral" as const;
+}
 
 export default function SubmissionsScreen({ navigation }: any) {
   const insets = useSafeAreaInsets();
@@ -37,6 +50,12 @@ export default function SubmissionsScreen({ navigation }: any) {
     refresh();
   }, []);
 
+  const summaryCards = [
+    { label: "Submitted", value: progress.submittedAnswers ?? 0, tone: "pink" as const },
+    { label: "Reviewed", value: progress.reviewedAnswers ?? 0, tone: "cyan" as const },
+    { label: "Average Score", value: progress.averageScore ?? "-", tone: "yellow" as const }
+  ];
+
   return (
     <View style={styles.safe}>
       <ScrollView contentContainerStyle={styles.scrollContent}>
@@ -50,40 +69,34 @@ export default function SubmissionsScreen({ navigation }: any) {
                 marginTop: -20,
                 paddingTop: insets.top + 16,
                 paddingHorizontal: 16,
-                paddingBottom: 16
+                paddingBottom: 20,
+                gap: 12
               }
             ]}
           >
-            <View style={styles.heroTopRow}>
+            <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
               <Text style={styles.heroTitle}>Submissions</Text>
+              <Badge label="Progress Center" tone="cyan" />
             </View>
-            <Text style={styles.heroEyebrow}>Progress Center</Text>
-            <Text style={styles.heroSubtitle}>Track your answers and feedback.</Text>
+            <Text style={styles.heroEyebrow}>Your Answers</Text>
+            <Text style={styles.heroSubtitle}>Track your submissions, scores, and teacher feedback in one place.</Text>
           </View>
 
-          <View style={styles.card}>
-            <View style={{ gap: 12 }}>
-              <View>
-                <Text style={styles.status}>Submitted</Text>
-                <Text style={[styles.title, { marginTop: 4 }]}>{progress.submittedAnswers ?? 0}</Text>
+          <View style={{ flexDirection: "row", gap: 12 }}>
+            {summaryCards.map((card) => (
+              <View key={card.label} style={[styles.card, { flex: 1, gap: 8 }]}> 
+                <Badge label={card.label} tone={card.tone} />
+                <Text style={{ color: colors.textPrimary, fontSize: 24, fontWeight: "800" }}>{card.value}</Text>
               </View>
-              <View>
-                <Text style={styles.status}>Reviewed</Text>
-                <Text style={[styles.title, { marginTop: 4 }]}>{progress.reviewedAnswers ?? 0}</Text>
-              </View>
-              <View>
-                <Text style={styles.status}>Average Score</Text>
-                <Text style={[styles.title, { marginTop: 4 }]}>{progress.averageScore ?? "-"}</Text>
-              </View>
-            </View>
+            ))}
           </View>
 
           {loading ? (
-            <View style={styles.emptyContainer}>
+            <View style={[styles.card, styles.emptyContainer]}>
               <Text style={styles.status}>Loading submissions...</Text>
             </View>
           ) : history.length === 0 ? (
-            <View style={styles.emptyContainer}>
+            <View style={[styles.card, styles.emptyContainer]}>
               <Text style={styles.status}>No submissions yet</Text>
             </View>
           ) : (
@@ -92,20 +105,41 @@ export default function SubmissionsScreen({ navigation }: any) {
               data={history}
               keyExtractor={(item) => item.id}
               renderItem={({ item }) => (
-                <Pressable style={styles.row} onPress={() => navigation.navigate("SubmissionDetail", { submissionId: item.id })}>
-                  <Text style={styles.title}>{item.challenge?.title ?? "Challenge"}</Text>
-                  <Text style={styles.status}>Score: {item.score ?? "Pending"}</Text>
+                <View style={[styles.row, { gap: 12 }]}> 
+                  <View style={{ flexDirection: "row", alignItems: "flex-start", justifyContent: "space-between", gap: 12 }}>
+                    <View style={{ flex: 1, gap: 6 }}>
+                      <Text style={[styles.title, { fontSize: 17 }]}>{item.challenge?.title ?? "Challenge"}</Text>
+                      <Text style={styles.status}>Score: {item.score ?? "Pending"}</Text>
+                    </View>
+                    <Badge label={item.status} tone={getStatusTone(item.status)} />
+                  </View>
+
                   {item.feedbackText ? (
-                    <View style={{ marginTop: 8, backgroundColor: "#f9fafb", padding: 10, borderRadius: 8 }}>
-                      <Text style={styles.hint}>Feedback:</Text>
-                      <Text style={[styles.status, { marginTop: 4 }]}>{item.feedbackText}</Text>
+                    <View
+                      style={{
+                        marginTop: 4,
+                        backgroundColor: colors.inputBg,
+                        borderColor: colors.borderColor,
+                        borderWidth: 1,
+                        padding: 12,
+                        borderRadius: 16,
+                        gap: 4
+                      }}
+                    >
+                      <Text style={styles.hint}>Teacher Feedback</Text>
+                      <Text style={[styles.status, { color: colors.textSecondary }]}>{item.feedbackText}</Text>
                     </View>
                   ) : (
-                    <Text style={[styles.status, { marginTop: 8 }]}>Waiting for teacher feedback...</Text>
+                    <Text style={[styles.status, { marginTop: 4 }]}>Waiting for teacher feedback...</Text>
                   )}
-                  <Text style={[styles.status, { marginTop: 8, fontSize: 12 }]}>Status: {item.status}</Text>
-                  <Text style={styles.link}>Open submission detail →</Text>
-                </Pressable>
+
+                  <Button
+                    title="Open Submission Detail"
+                    variant="outline"
+                    icon="arrow-forward"
+                    onPress={() => navigation.navigate("SubmissionDetail", { submissionId: item.id })}
+                  />
+                </View>
               )}
             />
           )}
@@ -114,4 +148,3 @@ export default function SubmissionsScreen({ navigation }: any) {
     </View>
   );
 }
-

@@ -1,10 +1,16 @@
 import { RouteProp, useFocusEffect, useNavigation, useRoute } from "@react-navigation/native";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { useCallback, useState } from "react";
-import { Alert, FlatList, KeyboardAvoidingView, Platform, Pressable, ScrollView, Text, View } from "react-native";
+import { Alert, FlatList, KeyboardAvoidingView, Platform, Pressable, ScrollView, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { api } from "../../actions/api";
 import { styles } from "../../actions/styles";
+import AppLogo from "../../components/AppLogo";
+import Badge from "../../components/Badge";
+import Button from "../../components/Button";
+import IconCircleButton from "../../components/IconCircleButton";
+import Text from "../../components/Text";
+import colors from "../../configs/colors";
 
 type ClassDetailRoute = RouteProp<{ ClassDetail: { classId: string; className?: string } }, "ClassDetail">;
 type ClassDetailNavigationProp = NativeStackNavigationProp<any, "ClassDetail">;
@@ -59,49 +65,61 @@ export default function ClassDetailScreen() {
     <View style={styles.safe}>
       <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : "height"} style={{ flex: 1 }}>
         <ScrollView contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
-          <View style={styles.container}>
-            <View
-              style={[
-                styles.heroCard,
-                {
-                  marginBottom: 2,
-                  marginHorizontal: -20,
-                  marginTop: -20,
-                  paddingTop: insets.top + 16,
-                  paddingHorizontal: 16,
-                  paddingBottom: 16
-                }
-              ]}
-            >
-              <View style={styles.heroTopRow}>
-                <Pressable style={styles.backButton} onPress={() => navigation.goBack()}>
-                  <Text style={styles.backButtonText}>← Back</Text>
-                </Pressable>
-                <Text style={styles.heroTitle} numberOfLines={1}>{classDetail?.name ?? className ?? "Class Detail"}</Text>
-              </View>
-              <Text style={styles.heroEyebrow}>Class Detail</Text>
-              <Text style={styles.heroSubtitle}>{classDetail?.description || "View students in this class"}</Text>
+          <View style={{ paddingHorizontal: 20, paddingTop: insets.top + 12, paddingBottom: 24 }}>
+            <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 20 }}>
+              <IconCircleButton icon="arrow-back" onPress={() => navigation.goBack()} />
+              <Badge label="Class Detail" tone="neutral" />
             </View>
 
-            <View style={styles.card}>
-              <Text style={styles.title}>Class Overview</Text>
-              <Text style={styles.status}>Students: {classDetail?._count?.enrollments ?? 0}</Text>
-              <Text style={styles.status}>Challenges: {classDetail?._count?.challenges ?? 0}</Text>
-              <Pressable
-                style={[styles.button, { marginTop: 12 }]}
+            <AppLogo color={colors.secondary} icon="library-outline" />
+
+            <Text style={[styles.heading, { marginTop: 20, marginBottom: 6 }]} numberOfLines={2}>
+              {classDetail?.name ?? className ?? "Class Detail"}
+            </Text>
+            <Text style={[styles.subheading, { marginBottom: 28 }]}>
+              {classDetail?.description || "View students in this class and manage enrollment."}
+            </Text>
+
+            <View style={[styles.card, { gap: 16 }]}> 
+              <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 10 }}>
+                <Badge
+                  label={`${classDetail?._count?.enrollments ?? 0} Student${(classDetail?._count?.enrollments ?? 0) === 1 ? "" : "s"}`}
+                  tone="cyan"
+                />
+                <Badge
+                  label={`${classDetail?._count?.challenges ?? 0} Challenge${(classDetail?._count?.challenges ?? 0) === 1 ? "" : "s"}`}
+                  tone="yellow"
+                />
+              </View>
+
+              <View>
+                <Text style={styles.title}>Class Overview</Text>
+                <Text style={[styles.subtitle, { marginTop: 6 }]}>Keep this roster up to date and add new students when they join your class.</Text>
+              </View>
+
+              <Button
+                title="Add New Student"
+                icon="person-add-outline"
+                iconPosition="left"
                 onPress={() => navigation.navigate("CreateStudent", { classId, className: classDetail?.name ?? className })}
-              >
-                <Text style={styles.buttonText}>Add New Student</Text>
-              </Pressable>
+              />
             </View>
 
             {loading ? (
               <View style={styles.emptyContainer}>
-                <Text style={styles.status}>Loading students...</Text>
+                <Text style={styles.emptyText}>Loading students...</Text>
               </View>
             ) : (classDetail?.students.length ?? 0) === 0 ? (
-              <View style={styles.emptyContainer}>
-                <Text style={styles.status}>No students enrolled in this class yet.</Text>
+              <View style={[styles.card, styles.emptyContainer, { alignItems: "flex-start", gap: 12 }]}>
+                <Badge label="Roster Empty" tone="neutral" />
+                <Text style={styles.title}>No students enrolled yet</Text>
+                <Text style={[styles.subtitle, { marginTop: 0 }]}>Add a student account to start assigning challenges in this class.</Text>
+                <Button
+                  title="Create Student"
+                  icon="add-circle-outline"
+                  iconPosition="left"
+                  onPress={() => navigation.navigate("CreateStudent", { classId, className: classDetail?.name ?? className })}
+                />
               </View>
             ) : (
               <View>
@@ -110,9 +128,17 @@ export default function ClassDetailScreen() {
                   scrollEnabled={false}
                   data={classDetail?.students ?? []}
                   keyExtractor={(item) => item.id}
+                  ItemSeparatorComponent={() => <View style={{ height: 12 }} />}
                   renderItem={({ item }) => (
                     <Pressable
-                      style={styles.row}
+                      style={({ pressed }) => [
+                        styles.row,
+                        {
+                          marginTop: 0,
+                          opacity: pressed ? 0.9 : 1,
+                          transform: [{ scale: pressed ? 0.99 : 1 }]
+                        }
+                      ]}
                       onPress={() =>
                         navigation.navigate("StudentDetail", {
                           classId,
@@ -121,10 +147,14 @@ export default function ClassDetailScreen() {
                         })
                       }
                     >
-                      <Text style={styles.title}>{item.displayName || item.name}</Text>
-                      <Text style={styles.status}>{item.email}</Text>
-                      <Text style={styles.status}>{item.gradeLevel || "No grade level set"}</Text>
-                      <Text style={[styles.link, { marginTop: 8 }]}>Open Student</Text>
+                      <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start", gap: 12 }}>
+                        <View style={{ flex: 1 }}>
+                          <Text style={styles.title}>{item.displayName || item.name}</Text>
+                          <Text style={[styles.subtitle, { marginTop: 6 }]}>{item.email}</Text>
+                        </View>
+                        <Badge label={item.gradeLevel || "No grade"} tone={item.gradeLevel ? "pink" : "neutral"} />
+                      </View>
+                      <Text style={[styles.link, { marginTop: 14 }]}>Open Student</Text>
                     </Pressable>
                   )}
                 />
@@ -136,4 +166,3 @@ export default function ClassDetailScreen() {
     </View>
   );
 }
-

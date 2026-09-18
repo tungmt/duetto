@@ -1,10 +1,14 @@
 import { useEffect, useState } from "react";
-import { Alert, Image, Pressable, ScrollView, View } from "react-native";
-import Text from "../../components/Text";
+import { Alert, Image, ScrollView, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { api } from "../../actions/api";
 import nav from "../../actions/navigation";
 import { styles } from "../../actions/styles";
+import Badge from "../../components/Badge";
+import Button from "../../components/Button";
+import IconCircleButton from "../../components/IconCircleButton";
+import Text from "../../components/Text";
+import colors from "../../configs/colors";
 
 type TeacherChallenge = {
   id: string;
@@ -110,18 +114,20 @@ export default function TeacherDetailScreen({ navigation, route }: any) {
                 marginTop: -20,
                 paddingTop: insets.top + 16,
                 paddingHorizontal: 16,
-                paddingBottom: 16
+                paddingBottom: 20,
+                gap: 14
               }
             ]}
           >
-            <View style={styles.heroTopRow}>
-              <Pressable style={styles.backButton} onPress={() => navigation.goBack()}>
-                <Text style={styles.backButtonText}>← Back</Text>
-              </Pressable>
-              <Text style={styles.heroTitle}>Teacher Profile</Text>
+            <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
+              <IconCircleButton icon="arrow-back" onPress={() => navigation.goBack()} />
+              <Badge label="Instructor" tone="cyan" />
             </View>
-            <Text style={styles.heroEyebrow}>Instructor</Text>
-            <Text style={styles.heroSubtitle}>See this teacher’s background and published challenge list.</Text>
+            <View>
+              <Text style={styles.heroTitle}>Teacher Profile</Text>
+              <Text style={[styles.heroEyebrow, { marginTop: 8 }]}>Mentor Spotlight</Text>
+              <Text style={[styles.heroSubtitle, { marginTop: 6 }]}>See this teacher’s background and published challenge list.</Text>
+            </View>
           </View>
 
           <View style={styles.card}>
@@ -129,58 +135,63 @@ export default function TeacherDetailScreen({ navigation, route }: any) {
               {teacher.avatarUrl ? (
                 <Image
                   source={{ uri: teacher.avatarUrl }}
-                  style={{ width: 68, height: 68, borderRadius: 34, backgroundColor: "#cbd5e1" }}
+                  style={{ width: 72, height: 72, borderRadius: 36, backgroundColor: colors.inputBg }}
                 />
               ) : (
                 <View
                   style={{
-                    width: 68,
-                    height: 68,
-                    borderRadius: 34,
-                    backgroundColor: "#0369a1",
+                    width: 72,
+                    height: 72,
+                    borderRadius: 36,
+                    backgroundColor: colors.secondary,
                     alignItems: "center",
                     justifyContent: "center"
                   }}
                 >
-                  <Text style={{ color: "#ffffff", fontSize: 24, fontWeight: "800" }}>{getInitials(teacher.displayName)}</Text>
+                  <Text style={{ color: colors.textPrimary, fontSize: 24, fontWeight: "800" }}>{getInitials(teacher.displayName)}</Text>
                 </View>
               )}
-              <View style={{ flex: 1 }}>
-                <Text style={styles.title}>{teacher.displayName}</Text>
+              <View style={{ flex: 1, gap: 6 }}>
+                <Text style={[styles.title, { fontSize: 20 }]}>{teacher.displayName}</Text>
                 <Text style={styles.subtitle}>{teacher.headline || teacher.name}</Text>
-                {teacher.school?.name ? <Text style={styles.status}>School: {teacher.school.name}</Text> : null}
-                {typeof teacher.yearsExperience === "number" ? (
-                  <Text style={styles.status}>{teacher.yearsExperience} years experience</Text>
-                ) : null}
+                <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8, marginTop: 2 }}>
+                  {teacher.school?.name ? <Badge label={teacher.school.name} tone="neutral" /> : null}
+                  {typeof teacher.yearsExperience === "number" ? (
+                    <Badge label={`${teacher.yearsExperience} years`} tone="yellow" />
+                  ) : null}
+                </View>
               </View>
             </View>
-            <Text style={styles.status}>{teacher.bio || "This teacher has not added a bio yet."}</Text>
+            <Text style={[styles.status, { color: colors.textSecondary }]}>{teacher.bio || "This teacher has not added a bio yet."}</Text>
           </View>
 
-          <Text style={styles.sectionTitle}>Challenges by {teacher.displayName}</Text>
-          {teacher.challenges.length === 0 ? (
-            <View style={styles.cardDark}>
-              <Text style={styles.status}>No published challenges available yet.</Text>
-            </View>
-          ) : (
-            teacher.challenges.map((challenge) => (
-              <Pressable
-                key={challenge.id}
-                style={styles.row}
-                onPress={() => nav.navigate("ChallengeDetail", { id: challenge.id })}
-              >
-                <Text style={styles.title}>{challenge.title}</Text>
-                <Text style={styles.subtitle} numberOfLines={2}>{challenge.description || "Teacher challenge"}</Text>
-                <Text style={styles.status}>
-                  {formatTimeAgo(challenge.createdAt)} • {challenge._count?.submissions ?? 0} answers
-                </Text>
-                <Text style={styles.link}>Open challenge →</Text>
-              </Pressable>
-            ))
-          )}
+          <View style={{ gap: 12 }}>
+            <Text style={styles.sectionTitle}>Challenges by {teacher.displayName}</Text>
+            {teacher.challenges.length === 0 ? (
+              <View style={styles.cardDark}>
+                <Text style={styles.status}>No published challenges available yet.</Text>
+              </View>
+            ) : (
+              teacher.challenges.map((challenge) => (
+                <View key={challenge.id} style={[styles.row, { gap: 12 }]}> 
+                  <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
+                    <Text style={[styles.title, { flex: 1, fontSize: 17 }]}>{challenge.title}</Text>
+                    <Badge label={`${challenge._count?.submissions ?? 0} answers`} tone="pink" />
+                  </View>
+                  <Text style={styles.subtitle} numberOfLines={2}>{challenge.description || "Teacher challenge"}</Text>
+                  <Text style={styles.status}>{formatTimeAgo(challenge.createdAt)}</Text>
+                  <Button
+                    title="Open Challenge"
+                    variant="secondary"
+                    icon="arrow-forward"
+                    onPress={() => nav.navigate("ChallengeDetail", { id: challenge.id })}
+                  />
+                </View>
+              ))
+            )}
+          </View>
         </View>
       </ScrollView>
     </View>
   );
 }
-

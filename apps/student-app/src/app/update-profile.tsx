@@ -1,10 +1,13 @@
 import { useState } from "react";
-import { Alert, KeyboardAvoidingView, Platform, Pressable, ScrollView, TextInput, View } from "react-native";
+import { Alert, KeyboardAvoidingView, Platform, ScrollView, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import Text from "../components/Text";
 import { api } from "../actions/api";
 import nav from "../actions/navigation";
 import { styles } from "../actions/styles";
+import AppLogo from "../components/AppLogo";
+import Button from "../components/Button";
+import FormInput from "../components/FormInput";
 
 export default function UpdateProfileScreen({ navigation }: any) {
   const insets = useSafeAreaInsets();
@@ -36,73 +39,51 @@ export default function UpdateProfileScreen({ navigation }: any) {
     <View style={styles.safe}>
       <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : "height"} style={{ flex: 1 }}>
         <ScrollView contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
-          <View style={styles.container}>
-            <View
-              style={[
-                styles.heroCard,
-                {
-                  marginBottom: 6,
-                  marginHorizontal: -20,
-                  marginTop: -20,
-                  paddingTop: insets.top + 16,
-                  paddingHorizontal: 16,
-                  paddingBottom: 16
-                }
-              ]}
-            >
-              <View style={styles.heroTopRow}>
-                <Text style={styles.heroTitle}>Profile</Text>
-              </View>
-              <Text style={styles.heroEyebrow}>Student Profile</Text>
-              <Text style={styles.heroSubtitle}>Update your student profile information.</Text>
-            </View>
+          <View style={{ paddingHorizontal: 20, paddingTop: insets.top + 12, paddingBottom: 24 }}>
+            <AppLogo />
 
-            <View style={{ gap: 12 }}>
-              <View>
-                <Text style={[styles.title, { marginBottom: 8 }]}>Display Name</Text>
-                <TextInput
-                  value={displayName}
-                  onChangeText={setDisplayName}
-                  placeholder="Your name"
-                  placeholderTextColor="#9ca3af"
-                  editable={!loading}
-                  style={styles.input}
-                />
-              </View>
+            <Text style={[styles.heading, { marginTop: 20, marginBottom: 6 }]}>Complete Your Profile</Text>
+            <Text style={[styles.subheading, { marginBottom: 28 }]}>
+              Update your student profile information.
+            </Text>
 
-              <View>
-                <Text style={[styles.title, { marginBottom: 8 }]}>Grade Level</Text>
-                <TextInput
-                  value={gradeLevel}
-                  onChangeText={setGradeLevel}
-                  placeholder="e.g., 10th Grade"
-                  placeholderTextColor="#9ca3af"
-                  editable={!loading}
-                  style={styles.input}
-                />
-              </View>
+            <View style={{ gap: 18 }}>
+              <FormInput
+                label="Display Name"
+                icon="person-outline"
+                value={displayName}
+                onChangeText={setDisplayName}
+                placeholder="Your name"
+                editable={!loading}
+              />
 
-              <View>
-                <Text style={[styles.title, { marginBottom: 8 }]}>Learning Goal</Text>
-                <TextInput
-                  value={learningGoal}
-                  onChangeText={setLearningGoal}
-                  placeholder="What would you like to learn?"
-                  placeholderTextColor="#9ca3af"
-                  multiline
-                  numberOfLines={4}
-                  editable={!loading}
-                  style={[styles.input, styles.inputMultiline]}
-                />
-              </View>
+              <FormInput
+                label="Grade Level"
+                icon="school-outline"
+                value={gradeLevel}
+                onChangeText={setGradeLevel}
+                placeholder="e.g., 10th Grade"
+                editable={!loading}
+              />
 
-              <Pressable
-                style={[styles.button, loading && styles.buttonDisabled]}
+              <FormInput
+                label="Learning Goal"
+                icon="star-outline"
+                value={learningGoal}
+                onChangeText={setLearningGoal}
+                placeholder="What would you like to learn?"
+                multiline
+                numberOfLines={4}
+                style={styles.inputMultiline}
+                editable={!loading}
+              />
+
+              <Button
+                title={loading ? "Saving..." : "Save Profile"}
+                icon="checkmark-outline"
                 onPress={save}
-                disabled={loading}
-              >
-                <Text style={styles.buttonText}>{loading ? "Saving..." : "Save Profile"}</Text>
-              </Pressable>
+                loading={loading}
+              />
             </View>
           </View>
         </ScrollView>
@@ -110,4 +91,3 @@ export default function UpdateProfileScreen({ navigation }: any) {
     </View>
   );
 }
-

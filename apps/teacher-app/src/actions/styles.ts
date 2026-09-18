@@ -1,43 +1,34 @@
 import { StyleSheet } from "react-native";
+import colors from "../configs/colors";
 
 export const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: "#eef3f8" },
-  container: { gap: 16, padding: 20, paddingBottom: 40 },
-  scrollContent: { paddingBottom: 40 },
+  safe: { flex: 1, backgroundColor: colors.bgColor },
+  container: { gap: 18, padding: 20, paddingBottom: 32 },
+  scrollContent: { backgroundColor: colors.bgColor, paddingBottom: 32 },
 
   // Hero header
   heroCard: {
-    backgroundColor: "#0f2742",
-    borderRadius: 20,
-    padding: 18,
-    gap: 6,
-    shadowColor: "#0f172a",
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.16,
-    shadowRadius: 16,
-    elevation: 6.
+    backgroundColor: colors.bgColor,
+    gap: 8
   },
   heroTopRow: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 10,
-    marginBottom: 4
+    justifyContent: "space-between",
+    minHeight: 54,
+    gap: 12
   },
   backButton: {
-    backgroundColor: "rgba(147, 197, 253, 0.2)",
-    borderColor: "rgba(147, 197, 253, 0.5)",
-    borderWidth: 1,
-    borderRadius: 999,
-    paddingHorizontal: 12,
-    paddingVertical: 7
+    paddingVertical: 8,
+    paddingRight: 12
   },
   backButtonText: {
-    color: "#dbeafe",
-    fontSize: 13,
+    color: colors.accent,
+    fontSize: 14,
     fontWeight: "700"
   },
   heroEyebrow: {
-    color: "#93c5fd",
+    color: colors.accent,
     fontSize: 12,
     fontWeight: "700",
     letterSpacing: 0.4,
@@ -45,71 +36,72 @@ export const styles = StyleSheet.create({
   },
   heroTitle: {
     flex: 1,
-    color: "#f8fafc",
-    fontSize: 28,
+    color: colors.textPrimary,
+    fontSize: 24,
     fontWeight: "800"
   },
   heroSubtitle: {
-    color: "#cbd5e1",
+    color: colors.textSecondary,
     fontSize: 14,
     fontWeight: "500",
     lineHeight: 20
   },
   
   // Typography
-  heading: { color: "#0f172a", fontSize: 32, fontWeight: "800", marginBottom: 4 },
-  subheading: { color: "#475569", fontSize: 16, fontWeight: "500", marginBottom: 20 },
-  sectionTitle: { color: "#0f172a", fontSize: 20, fontWeight: "700", marginTop: 20, marginBottom: 12 },
-  title: { color: "#0f172a", fontSize: 16, fontWeight: "700" },
-  subtitle: { color: "#64748b", fontSize: 14, fontWeight: "500", marginTop: 6 },
-  status: { color: "#64748b", fontSize: 13, marginTop: 4, fontWeight: "500" },
-  hint: { color: "#64748b", fontSize: 12, marginTop: 2 },
-  link: { color: "#0c4a6e", fontSize: 15, fontWeight: "700" },
+  heading: { color: colors.textPrimary, fontSize: 28, fontWeight: "800", marginBottom: 4 },
+  subheading: { color: colors.textSecondary, fontSize: 16, fontWeight: "500", marginBottom: 18 },
+  sectionTitle: { color: colors.textPrimary, fontSize: 18, fontWeight: "700", marginTop: 18, marginBottom: 10 },
+  sectionLabel: { color: colors.secondary, fontSize: 12, fontWeight: "800", letterSpacing: 0.6, textTransform: "uppercase" },
+  title: { color: colors.textPrimary, fontSize: 16, fontWeight: "700" },
+  subtitle: { color: colors.textSecondary, fontSize: 14, fontWeight: "500", marginTop: 6 },
+  status: { color: colors.textTertiary, fontSize: 13, marginTop: 4, fontWeight: "500" },
+  hint: { color: colors.textTertiary, fontSize: 12, marginTop: 2 },
+  link: { color: colors.secondary, fontSize: 15, fontWeight: "700" },
   
   // Cards and containers
   card: {
-    backgroundColor: "white",
-    borderColor: "#dbe4ef",
-    borderRadius: 16,
+    backgroundColor: colors.cardBg,
+    borderColor: colors.borderColor,
+    borderRadius: 12,
     borderWidth: 1,
     gap: 12,
     padding: 16,
-    shadowColor: "#0f172a",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.05,
-    shadowRadius: 10,
-    elevation: 3
+    shadowColor: "#342B43",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.04,
+    shadowRadius: 6,
+    elevation: 1
   },
   row: { 
-    backgroundColor: "white",
-    borderRadius: 16,
+    backgroundColor: colors.cardBg,
+    borderRadius: 12,
     marginTop: 12,
     padding: 16,
-    borderColor: "#dbe4ef",
+    borderColor: colors.borderColor,
     borderWidth: 1,
-    shadowColor: "#0f172a",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.05,
-    shadowRadius: 10,
-    elevation: 3
+    shadowColor: "#342B43",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.04,
+    shadowRadius: 6,
+    elevation: 1
   },
   
   // Inputs
   input: {
-    backgroundColor: "#f8fafc",
-    borderColor: "#dbe4ef",
+    backgroundColor: colors.inputBg,
+    borderColor: colors.borderColor,
     borderRadius: 12,
     borderWidth: 1,
     minHeight: 54,
     paddingHorizontal: 16,
     paddingVertical: 12,
     fontSize: 16,
-    color: "#0f172a",
+    color: colors.textPrimary,
     fontWeight: "500"
   },
   inputFocused: {
-    borderColor: "#3b82f6",
-    backgroundColor: "white"
+    borderColor: colors.primary,
+    backgroundColor: colors.inputBg
   },
   inputMultiline: {
     minHeight: 100,
@@ -119,7 +111,7 @@ export const styles = StyleSheet.create({
   
   // Buttons
   button: {
-    backgroundColor: "#0369a1",
+    backgroundColor: colors.primary,
     borderRadius: 12,
     paddingVertical: 14,
     paddingHorizontal: 16,
@@ -133,7 +125,9 @@ export const styles = StyleSheet.create({
     fontWeight: "700"
   },
   buttonSecondary: {
-    backgroundColor: "#e2e8f0",
+    backgroundColor: colors.cardBg,
+    borderColor: colors.borderColor,
+    borderWidth: 1,
     borderRadius: 12,
     paddingVertical: 12,
     paddingHorizontal: 16,
@@ -141,7 +135,7 @@ export const styles = StyleSheet.create({
     justifyContent: "center"
   },
   buttonSecondaryText: {
-    color: "#0f172a",
+    color: colors.textPrimary,
     fontSize: 15,
     fontWeight: "700"
   },
@@ -159,7 +153,7 @@ export const styles = StyleSheet.create({
     paddingVertical: 40
   },
   emptyText: {
-    color: "#64748b",
+    color: colors.textSecondary,
     fontSize: 16,
     fontWeight: "600"
   },
@@ -177,11 +171,11 @@ export const styles = StyleSheet.create({
     overflow: "hidden"
   },
   preview: {
-    backgroundColor: "#0b1220",
+    backgroundColor: colors.darkBg,
     borderRadius: 16,
     minHeight: 220,
     padding: 16,
     justifyContent: "center"
   },
-  previewText: { color: "white" }
+  previewText: { color: colors.textPrimary }
 });

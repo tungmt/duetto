@@ -4,12 +4,16 @@ import { useFocusEffect, useNavigation, useRoute } from "@react-navigation/nativ
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { useCallback, useRef, useState } from "react";
 import { VideoView, useVideoPlayer } from "expo-video";
-import { Alert, KeyboardAvoidingView, Platform, Pressable, ScrollView, View } from "react-native";
-import Text from "../../components/Text";
+import { Alert, KeyboardAvoidingView, Platform, ScrollView, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { api } from "../../actions/api";
 import nav from "../../actions/navigation";
 import { styles } from "../../actions/styles";
+import Badge from "../../components/Badge";
+import Button from "../../components/Button";
+import IconCircleButton from "../../components/IconCircleButton";
+import Text from "../../components/Text";
+import colors from "../../configs/colors";
 
 type SubmissionDetailNavigationProp = NativeStackNavigationProp<any, "SubmissionDetail">;
 type SubmissionDetailRoute = { params?: { submissionId?: string } };
@@ -29,6 +33,16 @@ type SubmissionDetail = {
     teacher?: { id: string; name: string } | null;
   };
 };
+
+function getStatusTone(status: string) {
+  if (status === "REVIEWED") {
+    return "cyan" as const;
+  }
+  if (status === "REJECTED") {
+    return "pink" as const;
+  }
+  return "neutral" as const;
+}
 
 export default function SubmissionDetailScreen() {
   const navigation = useNavigation<SubmissionDetailNavigationProp>();
@@ -329,49 +343,60 @@ export default function SubmissionDetailScreen() {
                   marginTop: -20,
                   paddingTop: insets.top + 16,
                   paddingHorizontal: 16,
-                  paddingBottom: 16
+                  paddingBottom: 20,
+                  gap: 14
                 }
               ]}
             >
-              <View style={styles.heroTopRow}>
-                <Pressable style={styles.backButton} onPress={() => navigation.goBack()}>
-                  <Text style={styles.backButtonText}>← Back</Text>
-                </Pressable>
-                <Text style={styles.heroTitle}>Submission Detail</Text>
+              <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
+                <IconCircleButton icon="arrow-back" onPress={() => navigation.goBack()} />
+                <Badge label={submission.status} tone={getStatusTone(submission.status)} />
               </View>
-              <Text style={styles.heroEyebrow}>Answer Review</Text>
-              <Text style={styles.heroSubtitle}>Preview your answer, review teacher feedback, and manage this submission.</Text>
+              <View>
+                <Text style={styles.heroTitle}>Submission Detail</Text>
+                <Text style={[styles.heroEyebrow, { marginTop: 8 }]}>Answer Review</Text>
+                <Text style={[styles.heroSubtitle, { marginTop: 6 }]}>Preview your answer, review teacher feedback, and manage this submission.</Text>
+              </View>
             </View>
 
             <View style={styles.card}>
-              <Text style={styles.title}>{submission.challenge.title}</Text>
-              <Text style={styles.status}>Teacher: {submission.challenge.teacher?.name ?? "Teacher"}</Text>
-              <Text style={styles.status}>Status: {submission.status}</Text>
-              <Text style={styles.status}>Score: {submission.score ?? "Pending"}</Text>
+              <Text style={[styles.title, { fontSize: 18 }]}>{submission.challenge.title}</Text>
+              <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8 }}>
+                <Badge label={submission.challenge.teacher?.name ?? "Teacher"} tone="neutral" />
+                <Badge label={submission.score != null ? `Score ${submission.score}` : "Score Pending"} tone={submission.score != null ? "yellow" : "neutral"} />
+              </View>
               <Text style={styles.status}>Submitted: {new Date(submission.createdAt).toLocaleString()}</Text>
             </View>
 
             <View style={styles.card}>
               <Text style={styles.title}>Challenge Preview</Text>
-              <Text style={[styles.status, { marginBottom: 8 }]}>Use this play button to preview challenge video with your answer audio together.</Text>
-              <VideoView
-                player={challengeVideoPlayer}
-                style={styles.videoContainer}
-                contentFit="contain"
-                nativeControls
-              />
+              <Text style={[styles.status, { marginBottom: 8 }]}>Use the player below to preview the challenge video with your answer audio together.</Text>
+              <View style={[styles.cardDark, { padding: 10, borderRadius: 20 }]}> 
+                <VideoView
+                  player={challengeVideoPlayer}
+                  style={[styles.videoContainer, { marginTop: 0 }]}
+                  contentFit="contain"
+                  nativeControls
+                />
+              </View>
             </View>
 
             <View style={styles.card}>
               <Text style={styles.title}>Your Submission</Text>
-              <Text style={styles.status}>Current answer track is attached to the challenge preview player above.</Text>
+              <Text style={styles.status}>Current answer audio is attached to the challenge preview player above.</Text>
               {submission.feedbackText ? (
-                <View style={styles.cardDark}>
-                  <Text style={styles.title}>Teacher Review</Text>
-                  <Text style={styles.status}>{submission.feedbackText}</Text>
+                <View style={[styles.cardDark, { borderRadius: 18 }]}> 
+                  <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
+                    <Text style={styles.title}>Teacher Review</Text>
+                    <Badge label="Feedback" tone="pink" />
+                  </View>
+                  <Text style={[styles.status, { color: colors.textSecondary }]}>{submission.feedbackText}</Text>
                 </View>
               ) : (
-                <Text style={styles.status}>Waiting for teacher review.</Text>
+                <View style={[styles.cardDark, { borderRadius: 18 }]}> 
+                  <Badge label="Pending Review" tone="neutral" />
+                  <Text style={styles.status}>Waiting for teacher review.</Text>
+                </View>
               )}
             </View>
 
@@ -380,49 +405,62 @@ export default function SubmissionDetailScreen() {
                 <Text style={styles.title}>Update Answer</Text>
                 <Text style={styles.status}>You can replace or cancel this submission until the teacher reviews it.</Text>
 
-                <View style={{ flexDirection: "row", gap: 12 }}>
-                  <Pressable
-                    style={[styles.button, { flex: 1, backgroundColor: isRecording ? "#ef4444" : "#0369a1" }]}
-                    onPress={isRecording ? stopRecording : startRecording}
-                    disabled={saving}
-                  >
-                    <Text style={styles.buttonText}>{isRecording ? "⏹ Stop Recording" : "⏺ Record New Answer"}</Text>
-                  </Pressable>
-                </View>
+                <Button
+                  title={isRecording ? "Stop Recording" : "Record New Answer"}
+                  icon={isRecording ? "stop-circle-outline" : "mic-outline"}
+                  onPress={isRecording ? stopRecording : startRecording}
+                  disabled={saving}
+                />
 
                 {replacementUri ? (
-                  <View style={styles.cardDark}>
-                    <Text style={styles.title}>New answer ready</Text>
+                  <View style={[styles.cardDark, { borderRadius: 18 }]}> 
+                    <Badge label="New Recording Ready" tone="cyan" />
                     <Text style={styles.status}>Preview above, then save to replace the current submission.</Text>
                   </View>
                 ) : null}
 
-                <Pressable
-                  style={[styles.button, (saving || !replacementUri) && styles.buttonDisabled, !replacementUri && { opacity: 0.5 }]}
-                  onPress={updateSubmission}
-                  disabled={saving || !replacementUri}
-                >
-                  <Text style={styles.buttonText}>
-                    {saving
+                <Button
+                  title={
+                    saving
                       ? uploadProgress != null
                         ? `Uploading ${(uploadProgress * 100).toFixed(0)}%...`
                         : "Saving..."
-                      : "Save New Answer"}
-                  </Text>
-                </Pressable>
+                      : "Save New Answer"
+                  }
+                  icon="cloud-upload-outline"
+                  onPress={updateSubmission}
+                  disabled={saving || !replacementUri}
+                  loading={saving && uploadProgress == null}
+                />
 
                 {saving && uploadProgress != null ? (
                   <View>
-                    <View style={{ width: "100%", height: 8, borderRadius: 999, backgroundColor: "#dbe4ef", overflow: "hidden" }}>
-                      <View style={{ width: `${Math.max(2, Math.round(uploadProgress * 100))}%`, height: "100%", backgroundColor: "#0369a1" }} />
+                    <View
+                      style={{
+                        width: "100%",
+                        height: 8,
+                        borderRadius: 999,
+                        backgroundColor: colors.inputBg,
+                        overflow: "hidden",
+                        borderWidth: 1,
+                        borderColor: colors.borderColor
+                      }}
+                    >
+                      <View
+                        style={{
+                          width: `${Math.max(2, Math.round(uploadProgress * 100))}%`,
+                          height: "100%",
+                          backgroundColor: colors.secondary
+                        }}
+                      />
                     </View>
-                    <Text style={{ color: "#64748b", fontSize: 12, marginTop: 6, fontWeight: "600" }}>Uploading replacement answer...</Text>
+                    <Text style={{ color: colors.textSecondary, fontSize: 12, marginTop: 6, fontWeight: "600" }}>
+                      Uploading replacement answer...
+                    </Text>
                   </View>
                 ) : null}
 
-                <Pressable style={[styles.button, styles.buttonDanger]} onPress={cancelSubmission} disabled={saving}>
-                  <Text style={styles.buttonText}>Cancel Submission</Text>
-                </Pressable>
+                <Button title="Cancel Submission" variant="dark" icon="trash-outline" onPress={cancelSubmission} disabled={saving} />
               </View>
             ) : null}
           </View>
@@ -431,4 +469,3 @@ export default function SubmissionDetailScreen() {
     </View>
   );
 }
-
